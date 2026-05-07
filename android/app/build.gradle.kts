@@ -9,6 +9,30 @@ plugins {
 }
 
 android {
+    android {
+    // ... التكوينات القديمة ...
+
+    defaultConfig {
+        // ...
+        multiDexEnabled true // ضيف السطر ده لو مش موجود
+    }
+
+    compileOptions {
+        // تفعيل دعم جافا 8
+        coreLibraryDesugaringEnabled true 
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    // ضيف السطر ده في قسم الـ dependencies
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
+}
     namespace = "com.example.social_network_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion

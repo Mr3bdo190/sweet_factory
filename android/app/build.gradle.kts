@@ -9,43 +9,31 @@ plugins {
 }
 
 android {
-    android {
-    // ... التكوينات القديمة ...
+    // ... التكوينات الأخرى ...
 
     defaultConfig {
         // ...
-        multiDexEnabled true // ضيف السطر ده لو مش موجود
+        // لاحظ وجود علامة الـ = هنا
+        multiDexEnabled = true 
     }
 
     compileOptions {
-        // تفعيل دعم جافا 8
-        coreLibraryDesugaringEnabled true 
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        // في الكوتلن بنضيف حرف is في البداية وعلامة =
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        // الكوتلن بيحب علامات التنصيص " " مش ' '
+        jvmTarget = "1.8" 
     }
 }
 
 dependencies {
-    // ضيف السطر ده في قسم الـ dependencies
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
+    // لازم الأقواس وعلامات التنصيص المزدوجة هنا
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 }
-    namespace = "com.example.social_network_app"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.social_network_app"

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "896592650203",
+    "project_id": "wateny",
+    "storage_bucket": "wateny.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:896592650203:android:331a465624c10b567491fe",
+        "android_client_info": {
+          "package_name": "com.example.social_network_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDa_pthPZvBaO4lOf8JFw4vJpvJFo318cI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

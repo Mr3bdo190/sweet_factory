@@ -34,6 +34,8 @@ dependencies:
   cached_network_image: ^3.4.1
   dio: ^5.9.2
   gal: ^2.3.2
+  firebase_messaging: ^16.2.0
+  flutter_local_notifications: ^21.0.0
 
 dev_dependencies:
   flutter_test:

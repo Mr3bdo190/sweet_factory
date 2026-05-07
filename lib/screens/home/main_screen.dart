@@ -1,105 +1,186 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/glass_theme.dart';
-import 'main_feed_screen.dart';
-import '../profile/profile_screen.dart';
-import '../explore/explore_screen.dart';
-import '../notifications/notifications_screen.dart';
-import '../chat/inbox_screen.dart';
-import '../../services/update_service.dart';
+import '../../widgets/post_card.dart';
+import 'create_post_screen.dart';
+import '../../services/presence_service.dart';
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+class MainFeedScreen extends StatefulWidget {
+  const MainFeedScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<MainFeedScreen> createState() => _MainFeedScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
-  
-  final List<Widget> _screens = [
-    const MainFeedScreen(),
-    const ExploreScreen(),
-    const InboxScreen(),
-    const NotificationsScreen(),
-    const ProfileScreen(),
-  ];
+class _MainFeedScreenState extends State<MainFeedScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  List<DocumentSnapshot> _posts = [];
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  DocumentSnapshot? _lastDocument;
+  final int _documentLimit = 10; // هنجيب 10 بوستات في المرة الواحدة
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      UpdateService.checkForUpdates(context);
+    PresenceService().init(); // تشغيل الرادار
+
+    _fetchInitialPosts();
+    // ... باقي الكود
+    // مراقبة النزول لآخر الشاشة عشان نجيب بوستات جديدة
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        _fetchMorePosts();
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // تحميل أول مجموعة من البوستات
+  Future<void> _fetchInitialPosts() async {
+    setState(() => _isLoading = true);
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('posts')
+          .orderBy('createdAt', descending: true)
+          .limit(_documentLimit)
+          .get();
+
+      setState(() {
+        _posts = snapshot.docs;
+        _isLoading = false;
+        if (snapshot.docs.isNotEmpty) {
+          _lastDocument = snapshot.docs.last;
+        }
+        if (snapshot.docs.length < _documentLimit) {
+          _hasMore = false;
+        }
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      // يفضل هنا طباعة الخطأ أو إظهار توست
+    }
+  }
+
+  // تحميل المجموعة اللي بعدها لما تنزل لتحت
+  Future<void> _fetchMorePosts() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    setState(() => _isLoadingMore = true);
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('posts')
+          .orderBy('createdAt', descending: true)
+          .startAfterDocument(_lastDocument!)
+          .limit(_documentLimit)
+          .get();
+
+      setState(() {
+        _posts.addAll(snapshot.docs);
+        _isLoadingMore = false;
+        if (snapshot.docs.isNotEmpty) {
+          _lastDocument = snapshot.docs.last;
+        }
+        if (snapshot.docs.length < _documentLimit) {
+          _hasMore = false;
+        }
+      });
+    } catch (e) {
+      setState(() => _isLoadingMore = false);
+    }
+  }
+
+  // ميزة سحب الشاشة للتحديث
+  Future<void> _onRefresh() async {
+    setState(() {
+      _hasMore = true;
+      _lastDocument = null;
+      _posts.clear();
+    });
+    await _fetchInitialPosts();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: GlassTheme.backgroundDark,
-          border: Border(
-            top: BorderSide(
-              color: GlassTheme.glassBorder.withValues(alpha: 0.3),
-              width: 0.5,
-            ),
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-                _buildNavItem(1, Icons.explore_outlined, Icons.explore, 'Explore'),
-                _buildNavItem(2, Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
-                _buildNavItem(3, Icons.notifications_outlined, Icons.notifications, 'Alerts'),
-                _buildNavItem(4, Icons.person_outline, Icons.person, 'Profile'),
-              ],
-            ),
+      backgroundColor: GlassTheme.backgroundDark,
+      appBar: AppBar(
+        backgroundColor: GlassTheme.backgroundDark.withValues(alpha: 0.9),
+        elevation: 0,
+        title: const Text(
+          'Wateny',
+          style: TextStyle(
+            color: GlassTheme.primaryAccent,
+            fontWeight: FontWeight.bold,
+            fontSize: 26,
+            letterSpacing: 1.2,
           ),
         ),
       ),
-    );
-  }
+      body: RefreshIndicator(
+        color: GlassTheme.primaryAccent,
+        backgroundColor: GlassTheme.backgroundDark,
+        onRefresh: _onRefresh,
+        child: _isLoading && _posts.isEmpty
+            ? const Center(
+                child:
+                    CircularProgressIndicator(color: GlassTheme.primaryAccent))
+            : _posts.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(height: 200),
+                      Center(
+                        child: Text(
+                          'No posts yet.\nBe the first to share something!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: GlassTheme.textSecondary, fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    physics:
+                        const AlwaysScrollableScrollPhysics(), // عشان الـ Refresh يشتغل دايماً
+                    itemCount: _posts.length + (_hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == _posts.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(20.0),
+                          child: Center(
+                              child: CircularProgressIndicator(
+                                  color: GlassTheme.primaryAccent)),
+                        );
+                      }
 
-  Widget _buildNavItem(int index, IconData inactiveIcon, IconData activeIcon, String label) {
-    final isSelected = _currentIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? GlassTheme.primaryAccent.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? activeIcon : inactiveIcon,
-              color: isSelected ? GlassTheme.primaryAccent : GlassTheme.textSecondary,
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? GlassTheme.primaryAccent : GlassTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
+                      final postData =
+                          _posts[index].data() as Map<String, dynamic>;
+                      final postId = _posts[index].id;
+
+                      return PostCard(post: postData, postId: postId);
+                    },
+                  ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: GlassTheme.primaryAccent,
+        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: () {
+          Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const CreatePostScreen()))
+              .then((value) =>
+                  _onRefresh()); // يعمل تحديث تلقائي لما ترجع من إضافة بوست
+        },
       ),
     );
   }

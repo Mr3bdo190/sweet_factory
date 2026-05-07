@@ -1,3 +1,4 @@
+import 'services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -6,12 +7,13 @@ import 'routes/app_routes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase with options from firebase_options.dart
   await Firebase.initializeApp(
+    await NotificationService().init();
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   runApp(const WatenyApp());
 }
 

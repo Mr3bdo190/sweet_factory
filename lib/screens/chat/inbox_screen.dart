@@ -109,6 +109,9 @@ class InboxScreen extends StatelessWidget {
                                 builder: (context, userSnap) {
                                   String otherUserName = 'User';
                                   String? otherUserImage;
+                                  bool isOnline =
+                                      false; // المتغير الجديد عشان نقرأ حالة الاتصال
+
                                   if (userSnap.hasData &&
                                       userSnap.data!.exists) {
                                     final uData = userSnap.data!.data()
@@ -116,6 +119,8 @@ class InboxScreen extends StatelessWidget {
                                     otherUserName =
                                         uData['name'] ?? otherUserName;
                                     otherUserImage = uData['profileImageUrl'];
+                                    isOnline = uData['isOnline'] ??
+                                        false; // بنشوفه أونلاين ولا لأ
                                   }
 
                                   return Padding(
@@ -138,19 +143,48 @@ class InboxScreen extends StatelessWidget {
                                         padding: const EdgeInsets.all(16.0),
                                         child: Row(
                                           children: [
-                                            CircleAvatar(
-                                              backgroundColor:
-                                                  GlassTheme.secondaryAccent,
-                                              backgroundImage: otherUserImage !=
-                                                          null &&
-                                                      otherUserImage.isNotEmpty
-                                                  ? NetworkImage(otherUserImage)
-                                                  : null,
-                                              child: (otherUserImage == null ||
-                                                      otherUserImage.isEmpty)
-                                                  ? const Icon(Icons.person,
-                                                      color: Colors.white)
-                                                  : null,
+                                            // هنا الـ Stack اللي بيركب النقطة الخضراء فوق الصورة
+                                            Stack(
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                CircleAvatar(
+                                                  radius: 24,
+                                                  backgroundColor: GlassTheme
+                                                      .secondaryAccent,
+                                                  backgroundImage:
+                                                      otherUserImage != null &&
+                                                              otherUserImage
+                                                                  .isNotEmpty
+                                                          ? NetworkImage(
+                                                              otherUserImage)
+                                                          : null,
+                                                  child: (otherUserImage ==
+                                                              null ||
+                                                          otherUserImage
+                                                              .isEmpty)
+                                                      ? const Icon(Icons.person,
+                                                          color: Colors.white)
+                                                      : null,
+                                                ),
+                                                if (isOnline) // لو أونلاين، النقطة تظهر
+                                                  Positioned(
+                                                    bottom: 0,
+                                                    right: 0,
+                                                    child: Container(
+                                                      width: 14,
+                                                      height: 14,
+                                                      decoration: BoxDecoration(
+                                                        color:
+                                                            Colors.greenAccent,
+                                                        shape: BoxShape.circle,
+                                                        border: Border.all(
+                                                            color: GlassTheme
+                                                                .backgroundDark,
+                                                            width: 2),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
                                             const SizedBox(width: 16),
                                             Expanded(

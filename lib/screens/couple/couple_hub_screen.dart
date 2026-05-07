@@ -295,10 +295,7 @@ class _CoupleHubScreenState extends State<CoupleHubScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          IconButton(
-              icon:
-                  const Icon(Icons.settings_outlined, color: Colors.pinkAccent),
-              onPressed: () {}),
+          // تم إزالة زرار الإعدادات الوهمي
           IconButton(
               icon: const Icon(Icons.heart_broken, color: Colors.grey),
               onPressed: _breakup),

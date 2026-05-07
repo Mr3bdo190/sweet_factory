@@ -1,14 +1,12 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/glass_theme.dart';
 import '../../widgets/glass_container.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/wateny_toast.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -23,159 +21,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _privacyLevel = 'Public';
   bool _privateAccount = false;
   bool _showActiveStatus = true;
-  bool _twoFactorEnabled = false;
-  bool _isLoading = true;
   bool _appLockEnabled = false;
-  bool _autoPlayVideos = true;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
-    _loadAppLockSettings();
-  }
-
-  Future<void> _loadAppLockSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _appLockEnabled = prefs.getBool('appLockEnabled') ?? false;
-      });
-    }
-  }
-
-  Future<void> _toggleAppLock(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (value) {
-      // Show PIN setup dialog
-      _showSetPinDialog();
-    } else {
-      await prefs.setBool('appLockEnabled', false);
-      await prefs.remove('appPin');
-      if (mounted) {
-        setState(() => _appLockEnabled = false);
-        WatenyToast.show(context, 'Success', 'App lock disabled', icon: Icons.lock_open);
-      }
-    }
-  }
-
-  void _showSetPinDialog() {
-    final pinController = TextEditingController();
-    final confirmController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: GlassTheme.backgroundDark,
-        title: const Text('Set PIN', style: TextStyle(color: GlassTheme.textPrimary)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: pinController,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              obscureText: true,
-              decoration: const InputDecoration(
-                hintText: 'Enter 4-digit PIN',
-                hintStyle: TextStyle(color: GlassTheme.textSecondary),
-              ),
-              style: const TextStyle(color: GlassTheme.textPrimary),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: confirmController,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              obscureText: true,
-              decoration: const InputDecoration(
-                hintText: 'Confirm PIN',
-                hintStyle: TextStyle(color: GlassTheme.textSecondary),
-              ),
-              style: const TextStyle(color: GlassTheme.textPrimary),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: GlassTheme.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (pinController.text.length != 4) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('PIN must be 4 digits')),
-                );
-                return;
-              }
-              if (pinController.text != confirmController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('PINs do not match')),
-                );
-                return;
-              }
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('appLockEnabled', true);
-              await prefs.setString('appPin', pinController.text);
-              if (mounted) {
-                setState(() => _appLockEnabled = true);
-                Navigator.pop(context);
-                WatenyToast.show(context, 'Success', 'App lock enabled', icon: Icons.lock);
-              }
-            },
-            child: const Text('Set PIN'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _clearCache() async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: GlassTheme.backgroundDark,
-        title: const Text('Clear Cache', style: TextStyle(color: GlassTheme.textPrimary)),
-        content: const Text(
-          'This will clear all cached images and temporary files. Are you sure?',
-          style: TextStyle(color: GlassTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: GlassTheme.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              // Clear cache logic would go here
-              WatenyToast.show(context, 'Success', 'Cache cleared successfully', icon: Icons.check_circle);
-            },
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _loadSettings() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (doc.exists && doc.data() != null) {
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final prefs = await SharedPreferences.getInstance();
+
+      if (doc.exists && doc.data() != null && mounted) {
         final data = doc.data()!;
-        if (mounted) {
-          setState(() {
-            _privateAccount = data['privateAccount'] ?? false;
-            _showActiveStatus = data['showActiveStatus'] ?? true;
-            _notificationsEnabled = data['notificationsEnabled'] ?? true;
-            _privacyLevel = data['defaultPrivacy'] ?? 'Public';
-            _twoFactorEnabled = data['twoFactorEnabled'] ?? false;
-            _isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _isLoading = false);
+        setState(() {
+          _privateAccount = data['privateAccount'] ?? false;
+          _showActiveStatus = data['showActiveStatus'] ?? true;
+          _notificationsEnabled = data['notificationsEnabled'] ?? true;
+          _privacyLevel = data['defaultPrivacy'] ?? 'Public';
+          _appLockEnabled = prefs.getBool('appLockEnabled') ?? false;
+          _isLoading = false;
+        });
       }
     }
   }
@@ -183,264 +54,233 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _updateSetting(String key, dynamic value) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({key: value});
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({key: value});
     }
   }
 
-  void _logout() async {
-    await FirebaseAuth.instance.signOut();
-    if (mounted) Navigator.pushReplacementNamed(context, AppRoutes.login);
-  }
-
-  void _changePassword() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset email sent (Demo)')));
-    // In real scenario: FirebaseAuth.instance.sendPasswordResetEmail(email: currentUser.email!);
+  Future<void> _deleteAccount() async {
+    // كود حقيقي لحذف الحساب
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+                backgroundColor: GlassTheme.backgroundDark,
+                title: const Text('Delete Account',
+                    style: TextStyle(color: Colors.redAccent)),
+                content: const Text(
+                    'Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.',
+                    style: TextStyle(color: GlassTheme.textPrimary)),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel')),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      setState(() => _isLoading = true);
+                      try {
+                        // مسح الداتا من قاعدة البيانات
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(user.uid)
+                            .delete();
+                        // مسح الحساب من Auth
+                        await user.delete();
+                        if (mounted)
+                          Navigator.pushNamedAndRemoveUntil(
+                              context, AppRoutes.login, (route) => false);
+                      } catch (e) {
+                        setState(() => _isLoading = false);
+                        if (mounted)
+                          WatenyToast.show(context, 'Error',
+                              'Please re-login before deleting your account for security reasons.',
+                              icon: Icons.error);
+                      }
+                    },
+                    child: const Text('Delete Permanently'),
+                  ),
+                ],
+              ));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final isAdmin = currentUser?.email == 'admin@wateny.com' || currentUser?.email == 'mr3bdo@wateny.com';
-
     if (_isLoading) {
-      return const Scaffold(backgroundColor: GlassTheme.backgroundDark, body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+          backgroundColor: GlassTheme.backgroundDark,
+          body: Center(child: CircularProgressIndicator()));
     }
+
+    final isAdmin =
+        FirebaseAuth.instance.currentUser?.email == 'mr3bdo@wateny.com';
 
     return Scaffold(
       backgroundColor: GlassTheme.backgroundDark,
-      appBar: AppBar(title: const Text('Settings & Privacy')),
-      body: SingleChildScrollView(
+      appBar: AppBar(
+          title: const Text('Settings',
+              style: TextStyle(fontWeight: FontWeight.bold))),
+      body: ListView(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ================== PRIVACY ==================
-            const Text('Privacy', style: TextStyle(color: GlassTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 12),
+        children: [
+          _buildSectionHeader('Privacy & Safety'),
+          GlassContainer(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _buildSwitchTile('Private Account',
+                    'Only followers can see posts', _privateAccount, (val) {
+                  setState(() => _privateAccount = val);
+                  _updateSetting('privateAccount', val);
+                }, Icons.lock_person),
+                const Divider(height: 1, color: GlassTheme.glassBorderLight),
+                _buildSwitchTile(
+                    'Active Status',
+                    'Let others see when you are online',
+                    _showActiveStatus, (val) {
+                  setState(() => _showActiveStatus = val);
+                  _updateSetting('showActiveStatus', val);
+                }, Icons.circle, iconColor: Colors.greenAccent),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          _buildSectionHeader('Preferences'),
+          GlassContainer(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _buildSwitchTile(
+                    'Push Notifications',
+                    'Receive alerts on your phone',
+                    _notificationsEnabled, (val) {
+                  setState(() => _notificationsEnabled = val);
+                  _updateSetting('notificationsEnabled', val);
+                }, Icons.notifications_active),
+                const Divider(height: 1, color: GlassTheme.glassBorderLight),
+                _buildSwitchTile('App Lock (PIN)', 'Require PIN to open Wateny',
+                    _appLockEnabled, (val) async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('appLockEnabled', val);
+                  setState(() => _appLockEnabled = val);
+                }, Icons.security),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          _buildSectionHeader('Data & Storage'),
+          GlassContainer(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.cleaning_services,
+                  color: GlassTheme.textPrimary),
+              title: const Text('Clear App Cache',
+                  style: TextStyle(color: GlassTheme.textPrimary)),
+              trailing: const Icon(Icons.arrow_forward_ios,
+                  size: 16, color: GlassTheme.textSecondary),
+              onTap: () {
+                PaintingBinding.instance.imageCache.clear();
+                WatenyToast.show(
+                    context, 'Cleaned!', 'App cache cleared successfully.',
+                    icon: Icons.check_circle);
+              },
+            ),
+          ),
+
+          if (isAdmin) ...[
+            const SizedBox(height: 24),
+            _buildSectionHeader('Admin Zone', color: Colors.amber),
             GlassContainer(
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    title: const Text('Private Account', style: TextStyle(color: GlassTheme.textPrimary)),
-                    subtitle: const Text('Only approved followers can see your posts.', style: TextStyle(color: GlassTheme.textSecondary, fontSize: 12)),
-                    value: _privateAccount,
-                    activeThumbColor: GlassTheme.primaryAccent,
-                    activeTrackColor: GlassTheme.primaryAccent.withValues(alpha: 0.5),
-                    onChanged: (val) {
-                      setState(() => _privateAccount = val);
-                      _updateSetting('privateAccount', val);
-                    },
-                    secondary: const Icon(Icons.lock_person, color: GlassTheme.textSecondary),
-                  ),
-                  const Divider(color: GlassTheme.glassBorder, height: 1),
-                  SwitchListTile(
-                    title: const Text('Show Active Status', style: TextStyle(color: GlassTheme.textPrimary)),
-                    subtitle: const Text('Let others see when you are online.', style: TextStyle(color: GlassTheme.textSecondary, fontSize: 12)),
-                    value: _showActiveStatus,
-                    activeThumbColor: GlassTheme.primaryAccent,
-                    activeTrackColor: GlassTheme.primaryAccent.withValues(alpha: 0.5),
-                    onChanged: (val) {
-                      setState(() => _showActiveStatus = val);
-                      _updateSetting('showActiveStatus', val);
-                    },
-                    secondary: const Icon(Icons.remove_red_eye, color: GlassTheme.textSecondary),
-                  ),
-                  const Divider(color: GlassTheme.glassBorder, height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.public, color: GlassTheme.textSecondary),
-                    title: const Text('Default Post Privacy', style: TextStyle(color: GlassTheme.textPrimary)),
-                    trailing: DropdownButton<String>(
-                      value: _privacyLevel,
-                      dropdownColor: GlassTheme.backgroundDark,
-                      style: const TextStyle(color: GlassTheme.primaryAccent),
-                      underline: const SizedBox(),
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() => _privacyLevel = newValue);
-                          _updateSetting('defaultPrivacy', newValue);
-                        }
-                      },
-                      items: <String>['Public', 'Friends', 'Only Me'].map((String value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
-                    ),
-                  ),
-                ],
+              padding: EdgeInsets.zero,
+              child: ListTile(
+                leading:
+                    const Icon(Icons.admin_panel_settings, color: Colors.amber),
+                title: const Text('Admin Dashboard',
+                    style: TextStyle(
+                        color: Colors.amber, fontWeight: FontWeight.bold)),
+                trailing: const Icon(Icons.arrow_forward_ios,
+                    size: 16, color: Colors.amber),
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const AdminDashboardScreen())),
               ),
             ),
-            const SizedBox(height: 24),
+          ],
 
-            // ================== SECURITY ==================
-            const Text('Account Security', style: TextStyle(color: GlassTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 12),
-            GlassContainer(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.password, color: GlassTheme.textSecondary),
-                    title: const Text('Change Password', style: TextStyle(color: GlassTheme.textPrimary)),
-                    trailing: const Icon(Icons.arrow_forward_ios, color: GlassTheme.textSecondary, size: 16),
-                    onTap: _changePassword,
-                  ),
-                  const Divider(color: GlassTheme.glassBorder, height: 1),
-                  SwitchListTile(
-                    title: const Text('Two-Factor Authentication', style: TextStyle(color: GlassTheme.textPrimary)),
-                    subtitle: const Text('Require a code when logging in.', style: TextStyle(color: GlassTheme.textSecondary, fontSize: 12)),
-                    value: _twoFactorEnabled,
-                    activeThumbColor: GlassTheme.primaryAccent,
-                    activeTrackColor: GlassTheme.primaryAccent.withValues(alpha: 0.5),
-                    onChanged: (val) {
-                      setState(() => _twoFactorEnabled = val);
-                      _updateSetting('twoFactorEnabled', val);
-                    },
-                    secondary: const Icon(Icons.security, color: GlassTheme.textSecondary),
-                  ),
-                  const Divider(color: GlassTheme.glassBorder, height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.devices, color: GlassTheme.textSecondary),
-                    title: const Text('Logout of all devices', style: TextStyle(color: Colors.orangeAccent)),
-                    onTap: () {
-                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logged out from other devices.')));
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ================== APP PREFERENCES ==================
-            const Text('App Preferences', style: TextStyle(color: GlassTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 12),
-            GlassContainer(
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    title: const Text('Push Notifications', style: TextStyle(color: GlassTheme.textPrimary)),
-                    value: _notificationsEnabled,
-                    activeThumbColor: GlassTheme.primaryAccent,
-                    activeTrackColor: GlassTheme.primaryAccent.withValues(alpha: 0.5),
-                    onChanged: (val) {
-                      setState(() => _notificationsEnabled = val);
-                      _updateSetting('notificationsEnabled', val);
-                    },
-                    secondary: const Icon(Icons.notifications, color: GlassTheme.textSecondary),
-                  ),
-                  const Divider(color: GlassTheme.glassBorder, height: 1),
-                  SwitchListTile(
-                    title: const Text('Dark Mode', style: TextStyle(color: GlassTheme.textPrimary)),
-                    value: _darkMode,
-                    activeThumbColor: GlassTheme.primaryAccent,
-                    activeTrackColor: GlassTheme.primaryAccent.withValues(alpha: 0.5),
-                    onChanged: (val) => setState(() => _darkMode = val),
-                    secondary: const Icon(Icons.dark_mode, color: GlassTheme.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ================== SECURITY & APP LOCK ==================
-            const Text('Security', style: TextStyle(color: GlassTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 12),
-            GlassContainer(
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    title: const Text('App Lock', style: TextStyle(color: GlassTheme.textPrimary)),
-                    subtitle: const Text('Require PIN to open app', style: TextStyle(color: GlassTheme.textSecondary, fontSize: 12)),
-                    value: _appLockEnabled,
-                    activeThumbColor: GlassTheme.primaryAccent,
-                    activeTrackColor: GlassTheme.primaryAccent.withValues(alpha: 0.5),
-                    onChanged: _toggleAppLock,
-                    secondary: const Icon(Icons.lock, color: GlassTheme.textSecondary),
-                  ),
-                  const Divider(color: GlassTheme.glassBorder, height: 1),
-                  SwitchListTile(
-                    title: const Text('Auto-play Videos', style: TextStyle(color: GlassTheme.textPrimary)),
-                    subtitle: const Text('Automatically play videos in feed', style: TextStyle(color: GlassTheme.textSecondary, fontSize: 12)),
-                    value: _autoPlayVideos,
-                    activeThumbColor: GlassTheme.primaryAccent,
-                    activeTrackColor: GlassTheme.primaryAccent.withValues(alpha: 0.5),
-                    onChanged: (val) => setState(() => _autoPlayVideos = val),
-                    secondary: const Icon(Icons.play_circle_outline, color: GlassTheme.textSecondary),
-                  ),
-                  const Divider(color: GlassTheme.glassBorder, height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.delete_sweep, color: GlassTheme.textSecondary),
-                    title: const Text('Clear Cache', style: TextStyle(color: GlassTheme.textPrimary)),
-                    trailing: const Icon(Icons.arrow_forward_ios, color: GlassTheme.textSecondary, size: 16),
-                    onTap: _clearCache,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ================== ABOUT ==================
-            const Text('About', style: TextStyle(color: GlassTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 12),
-            GlassContainer(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.info_outline, color: GlassTheme.textSecondary),
-                    title: const Text('App Version', style: TextStyle(color: GlassTheme.textPrimary)),
-                    trailing: const Text('2.0.0', style: TextStyle(color: GlassTheme.textSecondary)),
-                  ),
-                  const Divider(color: GlassTheme.glassBorder, height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.privacy_tip_outlined, color: GlassTheme.textSecondary),
-                    title: const Text('Privacy Policy', style: TextStyle(color: GlassTheme.textPrimary)),
-                    trailing: const Icon(Icons.arrow_forward_ios, color: GlassTheme.textSecondary, size: 16),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Privacy policy page coming soon')),
-                      );
-                    },
-                  ),
-                  const Divider(color: GlassTheme.glassBorder, height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.description_outlined, color: GlassTheme.textSecondary),
-                    title: const Text('Terms of Service', style: TextStyle(color: GlassTheme.textPrimary)),
-                    trailing: const Icon(Icons.arrow_forward_ios, color: GlassTheme.textSecondary, size: 16),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Terms of service page coming soon')),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ================== ADMIN ACTIONS ==================
-            if (isAdmin) ...[
-              const Text('Admin Actions', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 18)),
-              const SizedBox(height: 12),
-              GlassContainer(
-                child: ListTile(
-                  leading: const Icon(Icons.admin_panel_settings, color: Colors.redAccent),
-                  title: const Text('Admin Dashboard', style: TextStyle(color: Colors.redAccent)),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.redAccent),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+          const SizedBox(height: 32),
+          // منطقة الخطر (تسجيل الخروج وحذف الحساب)
+          GlassContainer(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.orangeAccent),
+                  title: const Text('Log Out',
+                      style: TextStyle(
+                          color: Colors.orangeAccent,
+                          fontWeight: FontWeight.bold)),
+                  onTap: () async {
+                    await FirebaseAuth.instance.signOut();
+                    if (context.mounted)
+                      Navigator.pushNamedAndRemoveUntil(
+                          context, AppRoutes.login, (route) => false);
                   },
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
-
-            // ================== LOGOUT ==================
-            GlassContainer(
-              child: ListTile(
-                leading: const Icon(Icons.logout, color: Colors.redAccent),
-                title: const Text('Log Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                onTap: _logout,
-              ),
+                const Divider(height: 1, color: GlassTheme.glassBorderLight),
+                ListTile(
+                  leading:
+                      const Icon(Icons.delete_forever, color: Colors.redAccent),
+                  title: const Text('Delete Account',
+                      style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.bold)),
+                  onTap: _deleteAccount,
+                ),
+              ],
             ),
-            const SizedBox(height: 40),
-          ],
-        ),
+          ),
+          const SizedBox(height: 40),
+        ],
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title,
+      {Color color = GlassTheme.primaryAccent}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
+      child: Text(title,
+          style: TextStyle(
+              color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+    );
+  }
+
+  Widget _buildSwitchTile(String title, String subtitle, bool value,
+      Function(bool) onChanged, IconData icon,
+      {Color? iconColor}) {
+    return SwitchListTile(
+      secondary: Icon(icon, color: iconColor ?? GlassTheme.textPrimary),
+      title: Text(title,
+          style: const TextStyle(
+              color: GlassTheme.textPrimary, fontWeight: FontWeight.w500)),
+      subtitle: Text(subtitle,
+          style:
+              const TextStyle(color: GlassTheme.textSecondary, fontSize: 12)),
+      value: value,
+      activeColor: Colors.white,
+      activeTrackColor: GlassTheme.primaryAccent,
+      inactiveThumbColor: GlassTheme.textSecondary,
+      inactiveTrackColor: GlassTheme.surfaceLight,
+      onChanged: onChanged,
     );
   }
 }

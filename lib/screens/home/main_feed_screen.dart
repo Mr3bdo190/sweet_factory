@@ -37,7 +37,8 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       if (!_isLoading && _hasMore) {
         _loadPosts();
       }
@@ -114,12 +115,12 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                 child: const StoriesBar(),
               ),
             ),
-            
+
             // Create Post Card
             SliverToBoxAdapter(
               child: _buildCreatePostCard(),
             ),
-            
+
             // Posts
             if (_posts.isEmpty && !_isLoading)
               const SliverFillRemaining(
@@ -127,16 +128,19 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.article_outlined, size: 64, color: GlassTheme.textMuted),
+                      Icon(Icons.article_outlined,
+                          size: 64, color: GlassTheme.textMuted),
                       SizedBox(height: 16),
                       Text(
                         'No posts yet',
-                        style: TextStyle(color: GlassTheme.textSecondary, fontSize: 16),
+                        style: TextStyle(
+                            color: GlassTheme.textSecondary, fontSize: 16),
                       ),
                       SizedBox(height: 8),
                       Text(
                         'Be the first to share something!',
-                        style: TextStyle(color: GlassTheme.textMuted, fontSize: 14),
+                        style: TextStyle(
+                            color: GlassTheme.textMuted, fontSize: 14),
                       ),
                     ],
                   ),
@@ -168,10 +172,8 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (_) => const CreatePostScreen())
-          );
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CreatePostScreen()));
         },
         backgroundColor: GlassTheme.primaryAccent,
         child: const Icon(Icons.add, color: Colors.white),
@@ -180,7 +182,6 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    final user = FirebaseAuth.instance.currentUser;
     return AppBar(
       backgroundColor: GlassTheme.backgroundDark,
       elevation: 0,
@@ -192,35 +193,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
           fontSize: 24,
         ),
       ),
-      actions: [
-        IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: GlassTheme.surfaceLight.withValues(alpha: 0.5),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.search, color: GlassTheme.textPrimary),
-          ),
-          onPressed: () {
-            // TODO: Implement search
-          },
-        ),
-        IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: GlassTheme.surfaceLight.withValues(alpha: 0.5),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.menu, color: GlassTheme.textPrimary),
-          ),
-          onPressed: () {
-            // TODO: Show menu
-          },
-        ),
-        const SizedBox(width: 8),
-      ],
+      // تم إزالة أزرار البحث والقائمة المكررة لترويق الواجهة
     );
   }
 
@@ -232,18 +205,19 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       decoration: BoxDecoration(
         color: GlassTheme.backgroundCard,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: GlassTheme.glassBorderLight.withValues(alpha: 0.3)),
+        border: Border.all(
+            color: GlassTheme.glassBorderLight.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 20,
             backgroundColor: GlassTheme.primaryAccent,
-            backgroundImage: user?.photoURL != null 
-                ? CachedNetworkImageProvider(user!.photoURL!) 
+            backgroundImage: user?.photoURL != null
+                ? CachedNetworkImageProvider(user!.photoURL!)
                 : null,
-            child: user?.photoURL == null 
-                ? const Icon(Icons.person, color: Colors.white, size: 20) 
+            child: user?.photoURL == null
+                ? const Icon(Icons.person, color: Colors.white, size: 20)
                 : null,
           ),
           const SizedBox(width: 12),
@@ -251,12 +225,13 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
             child: GestureDetector(
               onTap: () {
                 Navigator.push(
-                  context, 
-                  MaterialPageRoute(builder: (_) => const CreatePostScreen())
-                );
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CreatePostScreen()));
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: GlassTheme.surfaceLight.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(24),
@@ -275,10 +250,8 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
           IconButton(
             icon: const Icon(Icons.image, color: GlassTheme.accentPink),
             onPressed: () {
-              Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (_) => const CreatePostScreen())
-              );
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const CreatePostScreen()));
             },
           ),
         ],

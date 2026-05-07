@@ -1,23 +1,15 @@
 plugins {
     id("com.android.application")
-    // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
-    // END: FlutterFire Configuration
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    // ... التكوينات الأخرى ...
+    namespace = "com.example.sweet_factory" 
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
 
-    defaultConfig {
-        // ...
-        // لاحظ وجود علامة الـ = هنا
-        multiDexEnabled = true 
-    }
-
-   compileOptions {
+    compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -26,7 +18,22 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
-} // القوس ده مهم جداً عشان بيقفل بلوك الـ android كله
+
+    defaultConfig {
+        applicationId = "com.example.sweet_factory"
+        minSdk = 21
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+        multiDexEnabled = true
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+}
 
 flutter {
     source = "../.."

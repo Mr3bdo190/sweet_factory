@@ -43,7 +43,7 @@ class AppRoutes {
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     final String name = settings.name ?? '';
-    
+
     if (name == splash) {
       return MaterialPageRoute(builder: (_) => const SplashScreen());
     }
@@ -54,7 +54,7 @@ class AppRoutes {
       return MaterialPageRoute(builder: (_) => const RegisterScreen());
     }
     if (name == mainFeed) {
-      return MaterialPageRoute(builder: (_) => const MainScreen());
+      return MaterialPageRoute(builder: (_) => const MainFeedScreen());
     }
     if (name == createPost) {
       return MaterialPageRoute(builder: (_) => const CreatePostScreen());
@@ -119,7 +119,8 @@ class AppRoutes {
     if (name == coupleBucketList) {
       final args = settings.arguments as Map<String, dynamic>?;
       return MaterialPageRoute(
-        builder: (_) => CoupleBucketListScreen(coupleId: args?['coupleId'] ?? ''),
+        builder: (_) =>
+            CoupleBucketListScreen(coupleId: args?['coupleId'] ?? ''),
       );
     }
     if (name == coupleCalendar) {
@@ -131,7 +132,7 @@ class AppRoutes {
     if (name == adminDashboard) {
       return MaterialPageRoute(builder: (_) => const AdminDashboardScreen());
     }
-    
+
     // Default route
     return MaterialPageRoute(
       builder: (ctx) => Scaffold(

@@ -19,19 +19,23 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
-    // 1. طلب صلاحية إرسال الإشعارات من اليوزر (مهمة جداً في أندرويد 13+)
+    // 1. طلب صلاحية إرسال الإشعارات من اليوزر
     await _fcm.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // 2. تفعيل الإشعارات المحلية عشان تظهر والتطبيق مفتوح
+    // 2. تفعيل الإشعارات المحلية
     const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initSettings =
         InitializationSettings(android: androidInit);
-    await _localNotifications.initialize(initSettings);
+
+    // تم التعديل هنا: استخدام initializationSettings كمعامل مسمى
+    await _localNotifications.initialize(
+      initializationSettings: initSettings,
+    );
 
     // 3. الحصول على الـ Token (رقم تعريف جهاز اليوزر) وحفظه في الفايربيز
     String? token = await _fcm.getToken();
@@ -66,11 +70,12 @@ class NotificationService {
   void _showLocalNotification(RemoteMessage message) {
     final notification = message.notification;
     if (notification != null) {
+      // تم التعديل هنا: استخدام المعاملات المسماة (id, title, body, notificationDetails)
       _localNotifications.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        const NotificationDetails(
+        id: notification.hashCode,
+        title: notification.title,
+        body: notification.body,
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             'wateny_channel', // ID القناة
             'Wateny Notifications', // اسم القناة

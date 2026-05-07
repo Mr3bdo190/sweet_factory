@@ -8,12 +8,8 @@ import 'routes/app_routes.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with options from firebase_options.dart
-  await Firebase.initializeApp(
-    await NotificationService().init();
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
+  await Firebase.initializeApp(); // تأكد إن القوس ده مقفول
+  await NotificationService().init(); // وده في سطر لوحده تحته
   runApp(const WatenyApp());
 }
 

@@ -32,28 +32,27 @@ class NotificationService {
     const InitializationSettings initSettings =
         InitializationSettings(android: androidInit);
 
-    // تم التعديل هنا: استخدام initializationSettings كمعامل مسمى
+    // تم التعديل هنا: استخدام الكلمة الجديدة (settings)
     await _localNotifications.initialize(
-      initializationSettings: initSettings,
+      settings: initSettings,
     );
 
-    // 3. الحصول على الـ Token (رقم تعريف جهاز اليوزر) وحفظه في الفايربيز
+    // 3. الحصول على الـ Token وحفظه
     String? token = await _fcm.getToken();
     _saveToken(token);
 
     // تحديث الـ Token لو اتغير
     _fcm.onTokenRefresh.listen(_saveToken);
 
-    // 4. استقبال الإشعارات والتطبيق مفتوح (Foreground)
+    // 4. استقبال الإشعارات والتطبيق مفتوح
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       _showLocalNotification(message);
     });
 
-    // 5. استقبال الإشعارات والتطبيق مقفول (Background)
+    // 5. استقبال الإشعارات والتطبيق مقفول
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   }
 
-  // حفظ الـ Token في الداتا بيز عشان نعرف نبعت للإشعار للشخص الصح
   void _saveToken(String? token) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && token != null) {
@@ -66,19 +65,17 @@ class NotificationService {
     }
   }
 
-  // إظهار الإشعار على الشاشة
   void _showLocalNotification(RemoteMessage message) {
     final notification = message.notification;
     if (notification != null) {
-      // تم التعديل هنا: استخدام المعاملات المسماة (id, title, body, notificationDetails)
       _localNotifications.show(
         id: notification.hashCode,
         title: notification.title,
         body: notification.body,
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
-            'wateny_channel', // ID القناة
-            'Wateny Notifications', // اسم القناة
+            'wateny_channel',
+            'Wateny Notifications',
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',

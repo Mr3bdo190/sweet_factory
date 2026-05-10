@@ -5,11 +5,31 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  runApp(const WatenyApp());
+  try {
+    // محاولة تشغيل الفايربيز
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    runApp(const WatenyApp());
+  } catch (e) {
+    // لو ضرب إيرور، بدل ما يقفل هيعرضلك الشاشة دي
+    runApp(MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Colors.red[900],
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Crash Info:\n$e',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textDirection: TextDirection.ltr,
+            ),
+          ),
+        ),
+      ),
+    ));
+  }
 }
 
 class WatenyApp extends StatelessWidget {

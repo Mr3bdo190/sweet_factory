@@ -25,10 +25,13 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Clean Build
+        run: flutter clean
+
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build APK Debug
         run: flutter build apk --debug
 
       - name: Upload APK

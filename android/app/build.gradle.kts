@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.sweet_factory" 
+    namespace = "com.example.social_network_app" 
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.sweet_factory"
+        applicationId = "com.example.social_network_app"
         minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

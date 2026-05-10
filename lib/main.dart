@@ -1,29 +1,35 @@
-import 'services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'theme/glass_theme.dart';
-import 'routes/app_routes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-  await Firebase.initializeApp(); // تأكد إن القوس ده مقفول
-  await NotificationService().init(); // وده في سطر لوحده تحته
   runApp(const WatenyApp());
 }
 
 class WatenyApp extends StatelessWidget {
-  const WatenyApp({Key? key}) : super(key: key);
+  const WatenyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Wateny',
       debugShowCheckedModeBanner: false,
-      theme: GlassTheme.darkTheme,
-      initialRoute: AppRoutes.splash,
-      onGenerateRoute: AppRoutes.generateRoute,
+      title: 'Wateny New Era',
+      theme: ThemeData.dark(),
+      home: const Scaffold(
+        body: Center(
+          child: Text(
+            'تم الربط بنجاح.. بداية عهد جديد!',
+            style: TextStyle(fontSize: 20, color: Colors.purpleAccent),
+            textDirection: TextDirection.rtl,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -39,8 +39,10 @@ class ProfileScreen extends StatelessWidget {
           }
 
           var userData = userSnapshot.data!.data() as Map<String, dynamic>;
-          List followers = userData['followers'] ?? [];
-          List following = userData['following'] ?? [];
+          
+          // حماية ذكية ضد الكراش (Type Checking)
+          int followersCount = (userData['followers'] is List) ? (userData['followers'] as List).length : 0;
+          int followingCount = (userData['following'] is List) ? (userData['following'] as List).length : 0;
           String? profilePic = userData['profilePic'];
 
           return CustomScrollView(
@@ -69,8 +71,8 @@ class ProfileScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         _buildStatItem('منشورات', '...'), 
-                        _buildStatItem('متابعون', followers.length.toString()),
-                        _buildStatItem('أتابع', following.length.toString()),
+                        _buildStatItem('متابعون', followersCount.toString()),
+                        _buildStatItem('أتابع', followingCount.toString()),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -134,7 +136,9 @@ class ProfileScreen extends StatelessWidget {
                       (context, index) {
                         var post = posts[index].data() as Map<String, dynamic>;
                         String postId = posts[index].id;
-                        List likes = post['likes'] ?? [];
+                        
+                        // حماية ذكية للايكات
+                        List likes = (post['likes'] is List) ? post['likes'] : [];
                         bool isLiked = likes.contains(currentUser.uid);
 
                         return Card(

@@ -7,7 +7,6 @@ import 'chat_list_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  // دالة حساب الوقت
   String timeAgo(Timestamp? timestamp) {
     if (timestamp == null) return 'الآن';
     Duration diff = DateTime.now().difference(timestamp.toDate());
@@ -34,12 +33,11 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(width: 8),
         ],
       ),
-      // إضافة التحديث بالسحب
       body: RefreshIndicator(
         color: Colors.purpleAccent,
         backgroundColor: const Color(0xFF1A1A2E),
         onRefresh: () async {
-          await Future.delayed(const Duration(seconds: 1)); // بيعمل ريفريش وهمي شيك لأن الستريم بيتحدث لوحده
+          await Future.delayed(const Duration(seconds: 1));
         },
         child: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
@@ -52,13 +50,20 @@ class HomeScreen extends StatelessWidget {
               itemCount: snapshot.data!.docs.length,
               itemBuilder: (context, index) {
                 var postDoc = snapshot.data!.docs[index];
-                var post = postDoc.data() as Map<String, dynamic>;
-                String postId = postDoc.id;
-                String postOwnerId = post['uid'] ?? '';
                 
-                List likes = post['likes'] ?? [];
+                // حماية رقم 1: التأكد إن الداتا موجودة أصلاً
+                var post = postDoc.data() as Map<String, dynamic>? ?? {};
+                
+                String postId = postDoc.id;
+                String postOwnerId = post['uid']?.toString() ?? '';
+                String postText = post['text']?.toString() ?? '';
+                String postImageUrl = post['imageUrl']?.toString() ?? '';
+                
+                // حماية رقم 2: اللايكات والمحفوظات لازم تكون List، لو مش List اعتبرها فاضية
+                List likes = (post['likes'] is List) ? post['likes'] : [];
                 bool isLiked = currentUser != null && likes.contains(currentUser.uid);
-                List savedBy = post['savedBy'] ?? [];
+                
+                List savedBy = (post['savedBy'] is List) ? post['savedBy'] : [];
                 bool isSaved = currentUser != null && savedBy.contains(currentUser.uid);
 
                 return Card(
@@ -70,24 +75,39 @@ class HomeScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // سحب بيانات المستخدم ديناميكياً
                         FutureBuilder<DocumentSnapshot>(
                           future: FirebaseFirestore.instance.collection('users').doc(postOwnerId).get(),
                           builder: (context, userSnapshot) {
-                            String displayName = post['username'] ?? 'مستخدم';
-                            String? profilePic;
+                            String displayName = post['username']?.toString() ?? 'مستخدم';
+                            String profilePic = '';
+                            bool isOnline = false;
+
                             if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                              var uData = userSnapshot.data!.data() as Map<String, dynamic>;
-                              displayName = uData['name'] ?? displayName;
-                              profilePic = uData['profilePic'];
+                              var uData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+                              displayName = uData['name']?.toString() ?? displayName;
+                              profilePic = uData['profilePic']?.toString() ?? '';
+                              isOnline = uData['isOnline'] == true;
                             }
+
                             return Row(
                               children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: Colors.purpleAccent.withOpacity(0.2),
-                                  backgroundImage: (profilePic != null && profilePic.isNotEmpty) ? NetworkImage(profilePic) : null,
-                                  child: (profilePic == null || profilePic.isEmpty) ? const Icon(Icons.person, color: Colors.purpleAccent) : null,
+                                Stack(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: Colors.purpleAccent.withOpacity(0.2),
+                                      backgroundImage: profilePic.isNotEmpty ? NetworkImage(profilePic) : null,
+                                      child: profilePic.isEmpty ? const Icon(Icons.person, color: Colors.purpleAccent) : null,
+                                    ),
+                                    if (isOnline)
+                                      Positioned(
+                                        bottom: 0, right: 0,
+                                        child: Container(
+                                          width: 12, height: 12,
+                                          decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1A2E), width: 2)),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -104,13 +124,13 @@ class HomeScreen extends StatelessWidget {
                           },
                         ),
                         const SizedBox(height: 12),
-                        Text(post['text'] ?? '', style: const TextStyle(fontSize: 15, height: 1.4), textDirection: TextDirection.rtl),
-                        if (post['imageUrl'] != null && post['imageUrl'].toString().isNotEmpty)
+                        if (postText.isNotEmpty) Text(postText, style: const TextStyle(fontSize: 15, height: 1.4), textDirection: TextDirection.rtl),
+                        if (postImageUrl.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 12.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.network(post['imageUrl'], fit: BoxFit.cover, width: double.infinity, height: 250),
+                              child: Image.network(postImageUrl, fit: BoxFit.cover, width: double.infinity, height: 250),
                             ),
                           ),
                         const Divider(color: Colors.grey, height: 24),

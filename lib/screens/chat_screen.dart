@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../services/cloudinary_service.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -17,49 +19,68 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final User? currentUser = FirebaseAuth.instance.currentUser;
-  File? _image;
+  final _audioRecorder = Record();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  
   bool _isSending = false;
+  bool _isRecording = false;
 
-  String getChatRoomId(String a, String b) {
-    return (a.compareTo(b) > 0) ? "${b}_$a" : "${a}_$b";
+  String getChatRoomId(String a, String b) => (a.compareTo(b) > 0) ? "${b}_$a" : "${a}_$b";
+
+  void _updateTypingStatus(bool isTyping) {
+    if (currentUser == null) return;
+    String chatRoomId = getChatRoomId(currentUser!.uid, widget.receiverId);
+    FirebaseFirestore.instance.collection('chats').doc(chatRoomId).set({
+      'typing_${currentUser!.uid}': isTyping
+    }, SetOptions(merge: true));
   }
 
-  Future<void> pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() => _image = File(pickedFile.path));
-      sendMessage(); // أول ما تختار الصورة تتبعت على طول
+  // دوال تسجيل الصوت
+  Future<void> startRecording() async {
+    if (await _audioRecorder.hasPermission()) {
+      setState(() => _isRecording = true);
+      await _audioRecorder.start();
+    }
+  }
+
+  Future<void> stopRecordingAndSend() async {
+    setState(() => _isRecording = false);
+    final path = await _audioRecorder.stop();
+    if (path != null) {
+      setState(() => _isSending = true);
+      String? audioUrl = await CloudinaryService().uploadAudio(File(path));
+      if (audioUrl != null) {
+        String chatRoomId = getChatRoomId(currentUser!.uid, widget.receiverId);
+        await FirebaseFirestore.instance.collection('chats').doc(chatRoomId).collection('messages').add({
+          'senderId': currentUser!.uid,
+          'receiverId': widget.receiverId,
+          'audioUrl': audioUrl,
+          'timestamp': FieldValue.serverTimestamp(),
+          'isRead': false, 
+        });
+      }
+      setState(() => _isSending = false);
     }
   }
 
   void sendMessage() async {
-    if ((_msgController.text.trim().isEmpty && _image == null) || currentUser == null) return;
-    
+    if (_msgController.text.trim().isEmpty || currentUser == null) return;
     setState(() => _isSending = true);
     String text = _msgController.text.trim();
     _msgController.clear(); 
-
-    String? imageUrl;
-    if (_image != null) {
-      imageUrl = await CloudinaryService().uploadImage(_image!);
-      setState(() => _image = null);
-    }
+    _updateTypingStatus(false);
 
     String chatRoomId = getChatRoomId(currentUser!.uid, widget.receiverId);
-
     await FirebaseFirestore.instance.collection('chats').doc(chatRoomId).collection('messages').add({
       'senderId': currentUser!.uid,
       'receiverId': widget.receiverId,
       'text': text,
-      'imageUrl': imageUrl ?? '',
       'timestamp': FieldValue.serverTimestamp(),
-      'isRead': false, // الرسالة أول ما تتبعت بتبقى مش مقروءة
+      'isRead': false, 
     });
-    
     setState(() => _isSending = false);
   }
 
-  // دالة ذكية بتقرأ الرسايل أول ما تفتح الشات وتحولها لـ Seen
   void markMessagesAsRead(List<QueryDocumentSnapshot> docs) {
     for (var doc in docs) {
       var data = doc.data() as Map<String, dynamic>;
@@ -67,12 +88,6 @@ class _ChatScreenState extends State<ChatScreen> {
         doc.reference.update({'isRead': true});
       }
     }
-  }
-
-  String formatLastSeen(Timestamp? timestamp) {
-    if (timestamp == null) return 'غير متصل';
-    DateTime dt = timestamp.toDate();
-    return 'آخر ظهور: ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -83,26 +98,25 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A1A2E),
-        elevation: 0,
         title: StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance.collection('users').doc(widget.receiverId).snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return Text(widget.receiverName);
-            var userData = snapshot.data!.data() as Map<String, dynamic>?;
-            if (userData == null) return Text(widget.receiverName);
-
-            bool isOnline = userData['isOnline'] ?? false;
-            Timestamp? lastSeen = userData['lastSeen'] as Timestamp?;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.receiverName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(
-                  isOnline ? 'متصل الآن' : formatLastSeen(lastSeen),
-                  style: TextStyle(color: isOnline ? Colors.greenAccent : Colors.grey, fontSize: 12),
-                )
-              ],
+          builder: (context, userSnapshot) {
+            bool isOnline = (userSnapshot.hasData && userSnapshot.data!.exists) ? (userSnapshot.data!.data() as Map<String, dynamic>)['isOnline'] ?? false : false;
+            return StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('chats').doc(chatRoomId).snapshots(),
+              builder: (context, chatSnapshot) {
+                bool isTyping = (chatSnapshot.hasData && chatSnapshot.data!.exists) ? (chatSnapshot.data!.data() as Map<String, dynamic>)['typing_${widget.receiverId}'] ?? false : false;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.receiverName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(
+                      isTyping ? 'جاري الكتابة...' : (isOnline ? 'متصل الآن' : ''),
+                      style: TextStyle(color: isTyping ? Colors.purpleAccent : Colors.greenAccent, fontSize: 12),
+                    )
+                  ],
+                );
+              },
             );
           },
         ),
@@ -113,10 +127,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('chats').doc(chatRoomId).collection('messages').orderBy('timestamp', descending: true).snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('ابدأ المحادثة الآن! 💬', style: TextStyle(color: Colors.grey)));
-                
-                // تحويل رسائل الطرف الآخر لـ مقروءة
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 markMessagesAsRead(snapshot.data!.docs);
 
                 return ListView.builder(
@@ -126,48 +137,30 @@ class _ChatScreenState extends State<ChatScreen> {
                     var msg = snapshot.data!.docs[index].data() as Map<String, dynamic>;
                     bool isMe = msg['senderId'] == currentUser!.uid; 
                     bool isRead = msg['isRead'] ?? false;
-                    bool hasImage = msg['imageUrl'] != null && msg['imageUrl'].toString().isNotEmpty;
-                    
+                    bool hasAudio = msg['audioUrl'] != null;
+
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.purpleAccent : const Color(0xFF2A2A3E),
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(15), 
-                            topRight: const Radius.circular(15), 
-                            bottomLeft: Radius.circular(isMe ? 15 : 0), 
-                            bottomRight: Radius.circular(isMe ? 0 : 15)
-                          ),
-                        ),
+                        decoration: BoxDecoration(color: isMe ? Colors.purpleAccent : const Color(0xFF2A2A3E), borderRadius: BorderRadius.circular(15)),
                         child: Column(
                           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                           children: [
-                            // عرض الصورة لو موجودة
-                            if (hasImage)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Image.network(msg['imageUrl'], width: 200, fit: BoxFit.cover),
-                                ),
+                            if (hasAudio)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.play_circle_fill, color: Colors.white, size: 30),
+                                    onPressed: () => _audioPlayer.play(UrlSource(msg['audioUrl'])),
+                                  ),
+                                  const Text('رسالة صوتية 🎵', style: TextStyle(color: Colors.white)),
+                                ],
                               ),
-                            // عرض النص لو موجود
-                            if (msg['text'] != null && msg['text'].toString().isNotEmpty)
-                              Text(msg['text'], style: const TextStyle(color: Colors.white, fontSize: 16), textDirection: TextDirection.rtl),
-                            
-                            // علامات القراءة (بتظهر ليك إنت بس على رسايلك)
-                            if (isMe)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4.0),
-                                child: Icon(
-                                  Icons.done_all,
-                                  size: 16,
-                                  color: isRead ? Colors.blueAccent : Colors.white70, // أزرق لو اتقرت
-                                ),
-                              )
+                            if (msg['text'] != null) Text(msg['text'], style: const TextStyle(color: Colors.white, fontSize: 16), textDirection: TextDirection.rtl),
+                            if (isMe) Padding(padding: const EdgeInsets.only(top: 4.0), child: Icon(Icons.done_all, size: 16, color: isRead ? Colors.blueAccent : Colors.white70))
                           ],
                         ),
                       ),
@@ -181,22 +174,25 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.all(8.0), color: const Color(0xFF1A1A2E),
             child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.image, color: Colors.purpleAccent, size: 28),
-                  onPressed: pickImage, // زرار رفع الصور
+                GestureDetector(
+                  onLongPress: startRecording,
+                  onLongPressUp: stopRecordingAndSend,
+                  child: CircleAvatar(
+                    backgroundColor: _isRecording ? Colors.redAccent : Colors.purpleAccent,
+                    child: Icon(_isRecording ? Icons.mic_none : Icons.mic, color: Colors.white),
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
-                    controller: _msgController, textDirection: TextDirection.rtl,
-                    decoration: InputDecoration(
-                      hintText: 'اكتب رسالة...', hintStyle: const TextStyle(color: Colors.grey), 
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), 
-                      filled: true, fillColor: const Color(0xFF2A2A3E), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
-                    ),
+                    controller: _msgController, 
+                    textDirection: TextDirection.rtl,
+                    onChanged: (val) => _updateTypingStatus(val.trim().isNotEmpty),
+                    decoration: InputDecoration(hintText: _isRecording ? 'جاري التسجيل...' : 'اكتب رسالة...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none), filled: true, fillColor: const Color(0xFF2A2A3E), contentPadding: const EdgeInsets.symmetric(horizontal: 16)),
                   ),
                 ),
                 _isSending 
-                  ? const Padding(padding: EdgeInsets.all(12.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.purpleAccent, strokeWidth: 2)))
+                  ? const Padding(padding: EdgeInsets.all(12.0), child: CircularProgressIndicator(color: Colors.purpleAccent)) 
                   : IconButton(icon: const Icon(Icons.send, color: Colors.purpleAccent, size: 28), onPressed: sendMessage),
               ],
             ),

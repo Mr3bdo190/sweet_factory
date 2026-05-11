@@ -39,12 +39,41 @@ class HomeScreen extends StatelessWidget {
         onRefresh: () async {
           await Future.delayed(const Duration(seconds: 1));
         },
+        child: Column(
+          children: [
+            // شريط الحالات (Stories)
+            SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: 5, // داتا وهمية مؤقتة للحالات عشان متكراشش
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Colors.purpleAccent,
+                          child: index == 0 ? const Icon(Icons.add, color: Colors.white, size: 30) : const Icon(Icons.person, color: Colors.white),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(index == 0 ? 'إضافة حالة' : 'صديق', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            // البوستات
+            Expanded(
         child: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('مفيش بوستات لسه.. خليك أول واحد يكتب!', style: TextStyle(color: Colors.grey)));
 
+                  // تم وضع الـ ListView داخل Expanded
             return ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
               itemCount: snapshot.data!.docs.length,

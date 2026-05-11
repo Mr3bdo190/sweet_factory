@@ -46,10 +46,10 @@ class HomeScreen extends StatelessWidget {
               height: 100,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: 5, // داتا وهمية مؤقتة للحالات عشان متكراشش
+                itemCount: 6, // داتا مؤقتة للحالات
                 itemBuilder: (context, index) {
                   return Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
                     child: Column(
                       children: [
                         CircleAvatar(
@@ -65,148 +65,147 @@ class HomeScreen extends StatelessWidget {
                 },
               ),
             ),
-            // البوستات
+            // قائمة البوستات
             Expanded(
-        child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('مفيش بوستات لسه.. خليك أول واحد يكتب!', style: TextStyle(color: Colors.grey)));
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('posts').orderBy('timestamp', descending: true).snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('مفيش بوستات لسه.. خليك أول واحد يكتب!', style: TextStyle(color: Colors.grey)));
 
-                  // تم وضع الـ ListView داخل Expanded
-            return ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: snapshot.data!.docs.length,
-              itemBuilder: (context, index) {
-                var postDoc = snapshot.data!.docs[index];
-                
-                // حماية رقم 1: التأكد إن الداتا موجودة أصلاً
-                var post = postDoc.data() as Map<String, dynamic>? ?? {};
-                
-                String postId = postDoc.id;
-                String postOwnerId = post['uid']?.toString() ?? '';
-                String postText = post['text']?.toString() ?? '';
-                String postImageUrl = post['imageUrl']?.toString() ?? '';
-                
-                // حماية رقم 2: اللايكات والمحفوظات لازم تكون List، لو مش List اعتبرها فاضية
-                List likes = (post['likes'] is List) ? post['likes'] : [];
-                bool isLiked = currentUser != null && likes.contains(currentUser.uid);
-                
-                List savedBy = (post['savedBy'] is List) ? post['savedBy'] : [];
-                bool isSaved = currentUser != null && savedBy.contains(currentUser.uid);
+                  return ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: snapshot.data!.docs.length,
+                    itemBuilder: (context, index) {
+                      var postDoc = snapshot.data!.docs[index];
+                      var post = postDoc.data() as Map<String, dynamic>? ?? {};
+                      
+                      String postId = postDoc.id;
+                      String postOwnerId = post['uid']?.toString() ?? '';
+                      String postText = post['text']?.toString() ?? '';
+                      String postImageUrl = post['imageUrl']?.toString() ?? '';
+                      
+                      List likes = (post['likes'] is List) ? post['likes'] : [];
+                      bool isLiked = currentUser != null && likes.contains(currentUser.uid);
+                      
+                      List savedBy = (post['savedBy'] is List) ? post['savedBy'] : [];
+                      bool isSaved = currentUser != null && savedBy.contains(currentUser.uid);
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  color: const Color(0xFF1A1A2E),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        FutureBuilder<DocumentSnapshot>(
-                          future: FirebaseFirestore.instance.collection('users').doc(postOwnerId).get(),
-                          builder: (context, userSnapshot) {
-                            String displayName = post['username']?.toString() ?? 'مستخدم';
-                            String profilePic = '';
-                            bool isOnline = false;
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        color: const Color(0xFF1A1A2E),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              FutureBuilder<DocumentSnapshot>(
+                                future: FirebaseFirestore.instance.collection('users').doc(postOwnerId).get(),
+                                builder: (context, userSnapshot) {
+                                  String displayName = post['username']?.toString() ?? 'مستخدم';
+                                  String profilePic = '';
+                                  bool isOnline = false;
 
-                            if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                              var uData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
-                              displayName = uData['name']?.toString() ?? displayName;
-                              profilePic = uData['profilePic']?.toString() ?? '';
-                              isOnline = uData['isOnline'] == true;
-                            }
+                                  if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                                    var uData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+                                    displayName = uData['name']?.toString() ?? displayName;
+                                    profilePic = uData['profilePic']?.toString() ?? '';
+                                    isOnline = uData['isOnline'] == true;
+                                  }
 
-                            return Row(
-                              children: [
-                                Stack(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 20,
-                                      backgroundColor: Colors.purpleAccent.withOpacity(0.2),
-                                      backgroundImage: profilePic.isNotEmpty ? NetworkImage(profilePic) : null,
-                                      child: profilePic.isEmpty ? const Icon(Icons.person, color: Colors.purpleAccent) : null,
-                                    ),
-                                    if (isOnline)
-                                      Positioned(
-                                        bottom: 0, right: 0,
-                                        child: Container(
-                                          width: 12, height: 12,
-                                          decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1A2E), width: 2)),
+                                  return Row(
+                                    children: [
+                                      Stack(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 20,
+                                            backgroundColor: Colors.purpleAccent.withOpacity(0.2),
+                                            backgroundImage: profilePic.isNotEmpty ? NetworkImage(profilePic) : null,
+                                            child: profilePic.isEmpty ? const Icon(Icons.person, color: Colors.purpleAccent) : null,
+                                          ),
+                                          if (isOnline)
+                                            Positioned(
+                                              bottom: 0, right: 0,
+                                              child: Container(
+                                                width: 12, height: 12,
+                                                decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1A2E), width: 2)),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                            Text(timeAgo(post['timestamp'] as Timestamp?), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                          ],
                                         ),
                                       ),
-                                  ],
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                      Text(timeAgo(post['timestamp'] as Timestamp?), style: const TextStyle(color: Colors.grey, fontSize: 12)),
                                     ],
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              if (postText.isNotEmpty) Text(postText, style: const TextStyle(fontSize: 15, height: 1.4), textDirection: TextDirection.rtl),
+                              if (postImageUrl.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 12.0),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(postImageUrl, fit: BoxFit.cover, width: double.infinity, height: 250),
                                   ),
                                 ),
-                              ],
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        if (postText.isNotEmpty) Text(postText, style: const TextStyle(fontSize: 15, height: 1.4), textDirection: TextDirection.rtl),
-                        if (postImageUrl.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(postImageUrl, fit: BoxFit.cover, width: double.infinity, height: 250),
-                            ),
+                              const Divider(color: Colors.grey, height: 24),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      TextButton.icon(
+                                        onPressed: () async {
+                                          if (currentUser == null) return;
+                                          if (isLiked) {
+                                            await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayRemove([currentUser.uid])});
+                                          } else {
+                                            await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayUnion([currentUser.uid])});
+                                          }
+                                        },
+                                        icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.redAccent : Colors.grey, size: 22),
+                                        label: Text('${likes.length}', style: TextStyle(color: isLiked ? Colors.redAccent : Colors.grey)),
+                                      ),
+                                      TextButton.icon(
+                                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsScreen(postId: postId))),
+                                        icon: const Icon(Icons.comment_outlined, color: Colors.grey, size: 22),
+                                        label: const Text('تعليق', style: TextStyle(color: Colors.grey)),
+                                      ),
+                                    ],
+                                  ),
+                                  IconButton(
+                                    icon: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border, color: isSaved ? Colors.purpleAccent : Colors.grey, size: 22),
+                                    onPressed: () async {
+                                      if (currentUser == null) return;
+                                      if (isSaved) {
+                                        await FirebaseFirestore.instance.collection('posts').doc(postId).update({'savedBy': FieldValue.arrayRemove([currentUser.uid])});
+                                      } else {
+                                        await FirebaseFirestore.instance.collection('posts').doc(postId).update({'savedBy': FieldValue.arrayUnion([currentUser.uid])});
+                                      }
+                                    },
+                                  )
+                                ],
+                              ),
+                            ],
                           ),
-                        const Divider(color: Colors.grey, height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                TextButton.icon(
-                                  onPressed: () async {
-                                    if (currentUser == null) return;
-                                    if (isLiked) {
-                                      await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayRemove([currentUser.uid])});
-                                    } else {
-                                      await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayUnion([currentUser.uid])});
-                                    }
-                                  },
-                                  icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.redAccent : Colors.grey, size: 22),
-                                  label: Text('${likes.length}', style: TextStyle(color: isLiked ? Colors.redAccent : Colors.grey)),
-                                ),
-                                TextButton.icon(
-                                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsScreen(postId: postId))),
-                                  icon: const Icon(Icons.comment_outlined, color: Colors.grey, size: 22),
-                                  label: const Text('تعليق', style: TextStyle(color: Colors.grey)),
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              icon: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border, color: isSaved ? Colors.purpleAccent : Colors.grey, size: 22),
-                              onPressed: () async {
-                                if (currentUser == null) return;
-                                if (isSaved) {
-                                  await FirebaseFirestore.instance.collection('posts').doc(postId).update({'savedBy': FieldValue.arrayRemove([currentUser.uid])});
-                                } else {
-                                  await FirebaseFirestore.instance.collection('posts').doc(postId).update({'savedBy': FieldValue.arrayUnion([currentUser.uid])});
-                                }
-                              },
-                            )
-                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
-          },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

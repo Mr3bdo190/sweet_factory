@@ -17,8 +17,8 @@ dependencies:
   firebase_auth: ^6.4.0
   cloud_firestore: ^6.3.0
   image_picker:
+  record: ^4.2.8
   audioplayers:
-  record:
   cloudinary_public:
   http:
   firebase_storage: ^13.3.0

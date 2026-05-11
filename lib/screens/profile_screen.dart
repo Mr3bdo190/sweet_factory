@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'edit_profile_screen.dart';
 import 'comments_screen.dart';
+import 'saved_posts_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -40,18 +41,19 @@ class ProfileScreen extends StatelessWidget {
           var userData = userSnapshot.data!.data() as Map<String, dynamic>;
           List followers = userData['followers'] ?? [];
           List following = userData['following'] ?? [];
+          String? profilePic = userData['profilePic'];
 
           return CustomScrollView(
             slivers: [
-              // 1. الجزء العلوي: المعلومات الشخصية (Header)
               SliverToBoxAdapter(
                 child: Column(
                   children: [
                     const SizedBox(height: 10),
-                    CircleAvatar( backgroundImage: (userData['profilePic'] != null && userData['profilePic'].toString().isNotEmpty) ? NetworkImage(userData['profilePic']) : null, 
+                    CircleAvatar(
                       radius: 50,
                       backgroundColor: Colors.purpleAccent,
-                      child: (userData['profilePic'] == null || userData['profilePic'].toString().isEmpty) ? const Icon(Icons.person, size: 50, color: Colors.white) : null,
+                      backgroundImage: (profilePic != null && profilePic.isNotEmpty) ? NetworkImage(profilePic) : null,
+                      child: (profilePic == null || profilePic.isEmpty) ? const Icon(Icons.person, size: 50, color: Colors.white) : null,
                     ),
                     const SizedBox(height: 12),
                     Text(userData['name'] ?? 'مستخدم', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -63,47 +65,45 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     const SizedBox(height: 16),
                     
-                    // إحصائيات المتابعين (Stats Row)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildStatItem('منشورات', '...'), // هنجيبها من الـ Stream تحت
+                        _buildStatItem('منشورات', '...'), 
                         _buildStatItem('متابعون', followers.length.toString()),
                         _buildStatItem('أتابع', following.length.toString()),
                       ],
                     ),
                     const SizedBox(height: 20),
                     
-                    // أزرار التحكم
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purpleAccent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.purpleAccent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              ),
+                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen())),
+                              child: const Text('تعديل الملف الشخصي', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
                           ),
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen())),
-                          child: const Text('تعديل الملف الشخصي', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.purpleAccent),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              ),
+                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedPostsScreen())),
+                              icon: const Icon(Icons.bookmark, color: Colors.purpleAccent, size: 18),
+                              label: const Text('المنشورات المحفوظة', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold)),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.purpleAccent),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                          ),
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedPostsScreen())),
-                          icon: const Icon(Icons.bookmark, color: Colors.purpleAccent, size: 18),
-                          label: const Text('المنشورات المحفوظة', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold)),
-                        ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -112,7 +112,6 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              // 2. الجزء السفلي: المنشورات مع التفاعل (Posts Feed)
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('posts').where('uid', isEqualTo: currentUser.uid).snapshots(),
                 builder: (context, postSnapshot) {
@@ -123,7 +122,6 @@ class ProfileScreen extends StatelessWidget {
                     return const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.all(40), child: Text('لا توجد منشورات بعد.', style: TextStyle(color: Colors.grey)))));
                   }
 
-                  // ترتيب المنشورات يدوياً
                   posts.sort((a, b) {
                     Timestamp? t1 = (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
                     Timestamp? t2 = (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
@@ -151,7 +149,18 @@ class ProfileScreen extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    CircleAvatar( backgroundImage: (userData['profilePic'] != null && userData['profilePic'].toString().isNotEmpty) ? NetworkImage(userData['profilePic']) : null, backgroundColor: Colors.purpleAccent, radius: 15, child: Icon(Icons.person, size: 15, color: Colors.white)),
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: Colors.purpleAccent, 
+                                          radius: 15, 
+                                          backgroundImage: (profilePic != null && profilePic.isNotEmpty) ? NetworkImage(profilePic) : null,
+                                          child: (profilePic == null || profilePic.isEmpty) ? const Icon(Icons.person, size: 15, color: Colors.white) : null,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(post['username'] ?? 'مستخدم', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                                       onPressed: () => FirebaseFirestore.instance.collection('posts').doc(postId).delete(),
@@ -160,9 +169,16 @@ class ProfileScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 12),
                                 Text(post['text'] ?? '', style: const TextStyle(fontSize: 16, color: Colors.white), textDirection: TextDirection.rtl),
+                                if (post['imageUrl'] != null && post['imageUrl'].toString().isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 12.0),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(post['imageUrl'], fit: BoxFit.cover, width: double.infinity, height: 250),
+                                    ),
+                                  ),
                                 const Divider(color: Colors.grey, height: 24),
                                 
-                                // أزرار التفاعل (اللايك والتعليق)
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                                   children: [

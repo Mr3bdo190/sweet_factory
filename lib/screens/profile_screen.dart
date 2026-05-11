@@ -48,10 +48,10 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     const SizedBox(height: 10),
-                    const CircleAvatar(
+                    CircleAvatar( backgroundImage: (userData['profilePic'] != null && userData['profilePic'].toString().isNotEmpty) ? NetworkImage(userData['profilePic']) : null, 
                       radius: 50,
                       backgroundColor: Colors.purpleAccent,
-                      child: Icon(Icons.person, size: 50, color: Colors.white),
+                      child: (userData['profilePic'] == null || userData['profilePic'].toString().isEmpty) ? const Icon(Icons.person, size: 50, color: Colors.white) : null,
                     ),
                     const SizedBox(height: 12),
                     Text(userData['name'] ?? 'مستخدم', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -151,7 +151,7 @@ class ProfileScreen extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const CircleAvatar(backgroundColor: Colors.purpleAccent, radius: 15, child: Icon(Icons.person, size: 15, color: Colors.white)),
+                                    CircleAvatar( backgroundImage: (userData['profilePic'] != null && userData['profilePic'].toString().isNotEmpty) ? NetworkImage(userData['profilePic']) : null, backgroundColor: Colors.purpleAccent, radius: 15, child: Icon(Icons.person, size: 15, color: Colors.white)),
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
                                       onPressed: () => FirebaseFirestore.instance.collection('posts').doc(postId).delete(),

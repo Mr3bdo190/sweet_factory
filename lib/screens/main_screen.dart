@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../services/presence_service.dart';
 import 'home_screen.dart'; 
-import 'search_screen.dart'; // سحبنا شاشة البحث
+import 'search_screen.dart'; 
 import 'add_screen.dart';
-import 'notifications_screen.dart'; // سحبنا شاشة الإشعارات
+import 'notifications_screen.dart'; 
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -15,7 +16,6 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  // كل الشاشات دلوقتي حقيقية 100% ومربوطة بالداتا بيز
   final List<Widget> _screens = const [
     HomeScreen(), 
     SearchScreen(), 
@@ -25,12 +25,16 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // تشغيل مراقب الأونلاين
+    PresenceService().init();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: const Color(0xFF1A1A2E),

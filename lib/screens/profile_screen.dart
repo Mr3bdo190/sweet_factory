@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
-import 'edit_profile_screen.dart'; // استدعاء شاشة التعديل
+import 'edit_profile_screen.dart';
+import 'comments_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final User? user = FirebaseAuth.instance.currentUser;
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) return const Scaffold(body: Center(child: Text('الرجاء تسجيل الدخول')));
 
     return Scaffold(
       appBar: AppBar(
@@ -18,101 +21,193 @@ class ProfileScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.logout, color: Colors.redAccent), onPressed: () async => await AuthService().logOut())
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            onPressed: () async => await AuthService().logOut(),
+          )
         ],
       ),
-      body: user == null
-          ? const Center(child: Text('الرجاء تسجيل الدخول'))
-          : Column(
-              children: [
-                const SizedBox(height: 10),
-                const CircleAvatar(radius: 45, backgroundColor: Colors.purpleAccent, child: Icon(Icons.person, size: 45, color: Colors.white)),
-                const SizedBox(height: 10),
-                StreamBuilder<DocumentSnapshot>( // خليناها Stream عشان تتحدث فوراً بعد التعديل
-                  stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const SizedBox();
-                    var userData = snapshot.data!.data() as Map<String, dynamic>?;
-                    if (userData == null) return const SizedBox();
-                    return Column(
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').doc(currentUser.uid).snapshots(),
+        builder: (context, userSnapshot) {
+          if (userSnapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
+          }
+          if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+            return const Center(child: Text('خطأ في تحميل البيانات'));
+          }
+
+          var userData = userSnapshot.data!.data() as Map<String, dynamic>;
+          List followers = userData['followers'] ?? [];
+          List following = userData['following'] ?? [];
+
+          return CustomScrollView(
+            slivers: [
+              // 1. الجزء العلوي: المعلومات الشخصية (Header)
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    const CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.purpleAccent,
+                      child: Icon(Icons.person, size: 50, color: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(userData['name'] ?? 'مستخدم', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text(userData['email'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                    if (userData['bio'] != null && userData['bio'].toString().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(userData['bio'], textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+                      ),
+                    const SizedBox(height: 16),
+                    
+                    // إحصائيات المتابعين (Stats Row)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        Text(userData['name'] ?? 'مستخدم', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                        Text(userData['email'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 14)),
-                        if (userData['bio'] != null && userData['bio'].toString().isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                            child: Text(userData['bio'], style: const TextStyle(color: Colors.white70, fontSize: 16), textAlign: TextAlign.center, textDirection: TextDirection.rtl),
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()));
-                          },
-                          icon: const Icon(Icons.edit, size: 18, color: Colors.purpleAccent),
-                          label: const Text('تعديل الحساب', style: TextStyle(color: Colors.purpleAccent)),
-                          style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.purpleAccent), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                        ),
+                        _buildStatItem('منشورات', '...'), // هنجيبها من الـ Stream تحت
+                        _buildStatItem('متابعون', followers.length.toString()),
+                        _buildStatItem('أتابع', following.length.toString()),
                       ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                const Divider(height: 1, color: Colors.grey),
-                const SizedBox(height: 10),
-                const Text('بوستاتي', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.purpleAccent)),
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance.collection('posts').where('uid', isEqualTo: user.uid).snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('لسه معملتش أي بوستات.', style: TextStyle(color: Colors.grey)));
-
-                      var docs = snapshot.data!.docs;
-                      docs.sort((a, b) {
-                        Timestamp? t1 = (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
-                        Timestamp? t2 = (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
-                        if (t1 == null || t2 == null) return 0;
-                        return t2.compareTo(t1);
-                      });
-
-                      return ListView.builder(
-                        itemCount: docs.length,
-                        itemBuilder: (context, index) {
-                          var postDoc = docs[index];
-                          var post = postDoc.data() as Map<String, dynamic>;
-                          return Card(
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            color: const Color(0xFF1A1A2E),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // أزرار التحكم
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purpleAccent,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Icon(Icons.article_outlined, color: Colors.grey),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                                        onPressed: () async => await FirebaseFirestore.instance.collection('posts').doc(postDoc.id).delete(),
-                                      )
-                                    ],
-                                  ),
-                                  Text(post['text'] ?? '', style: const TextStyle(fontSize: 16, color: Colors.white), textDirection: TextDirection.rtl),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+                          ),
+                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen())),
+                          child: const Text('تعديل الملف الشخصي', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.purpleAccent),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          ),
+                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedPostsScreen())),
+                          icon: const Icon(Icons.bookmark, color: Colors.purpleAccent, size: 18),
+                          label: const Text('المنشورات المحفوظة', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Divider(color: Colors.grey, thickness: 0.5),
+                  ],
                 ),
-              ],
-            ),
+              ),
+
+              // 2. الجزء السفلي: المنشورات مع التفاعل (Posts Feed)
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('posts').where('uid', isEqualTo: currentUser.uid).snapshots(),
+                builder: (context, postSnapshot) {
+                  if (!postSnapshot.hasData) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+                  
+                  var posts = postSnapshot.data!.docs;
+                  if (posts.isEmpty) {
+                    return const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.all(40), child: Text('لا توجد منشورات بعد.', style: TextStyle(color: Colors.grey)))));
+                  }
+
+                  // ترتيب المنشورات يدوياً
+                  posts.sort((a, b) {
+                    Timestamp? t1 = (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+                    Timestamp? t2 = (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+                    if (t1 == null || t2 == null) return 0;
+                    return t2.compareTo(t1);
+                  });
+
+                  return SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        var post = posts[index].data() as Map<String, dynamic>;
+                        String postId = posts[index].id;
+                        List likes = post['likes'] ?? [];
+                        bool isLiked = likes.contains(currentUser.uid);
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          color: const Color(0xFF1A1A2E),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const CircleAvatar(backgroundColor: Colors.purpleAccent, radius: 15, child: Icon(Icons.person, size: 15, color: Colors.white)),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                      onPressed: () => FirebaseFirestore.instance.collection('posts').doc(postId).delete(),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(post['text'] ?? '', style: const TextStyle(fontSize: 16, color: Colors.white), textDirection: TextDirection.rtl),
+                                const Divider(color: Colors.grey, height: 24),
+                                
+                                // أزرار التفاعل (اللايك والتعليق)
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    TextButton.icon(
+                                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsScreen(postId: postId))),
+                                      icon: const Icon(Icons.comment_outlined, color: Colors.grey, size: 20),
+                                      label: const Text('تعليق', style: TextStyle(color: Colors.grey)),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: () async {
+                                        if (isLiked) {
+                                          await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayRemove([currentUser.uid])});
+                                        } else {
+                                          await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayUnion([currentUser.uid])});
+                                        }
+                                      },
+                                      icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.redAccent : Colors.grey, size: 20),
+                                      label: Text('${likes.length}', style: TextStyle(color: isLiked ? Colors.redAccent : Colors.grey)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      childCount: posts.length,
+                    ),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+      ],
     );
   }
 }

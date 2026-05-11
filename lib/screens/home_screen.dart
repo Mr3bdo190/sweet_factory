@@ -42,6 +42,10 @@ class HomeScreen extends StatelessWidget {
               List likes = post['likes'] ?? [];
               bool isLiked = currentUser != null && likes.contains(currentUser.uid);
 
+              // لوجيك الحفظ الجديد
+              List savedBy = post['savedBy'] ?? [];
+              bool isSaved = currentUser != null && savedBy.contains(currentUser.uid);
+
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 color: const Color(0xFF1A1A2E),
@@ -60,42 +64,60 @@ class HomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(post['text'] ?? '', style: const TextStyle(fontSize: 15), textDirection: TextDirection.rtl),
+                      if (post['imageUrl'] != null && post['imageUrl'].toString().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            child: Image.network(post['imageUrl'], fit: BoxFit.cover, width: double.infinity, height: 250),
+                          ),
+                        ),
                       const Divider(color: Colors.grey, height: 24),
                       
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          TextButton.icon(
-                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsScreen(postId: postId))),
-                            icon: const Icon(Icons.comment_outlined, color: Colors.grey),
-                            label: const Text('تعليق', style: TextStyle(color: Colors.grey)),
+                          Row(
+                            children: [
+                              TextButton.icon(
+                                onPressed: () async {
+                                  if (currentUser == null) return;
+                                  if (isLiked) {
+                                    await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayRemove([currentUser.uid])});
+                                  } else {
+                                    await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayUnion([currentUser.uid])});
+                                    if (postOwnerId != currentUser.uid) {
+                                      DocumentSnapshot myDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
+                                      String myName = (myDoc.data() as Map<String, dynamic>)['name'] ?? 'مستخدم';
+                                      await FirebaseFirestore.instance.collection('users').doc(postOwnerId).collection('notifications').add({
+                                        'title': 'إعجاب جديد ❤️', 'body': 'أعجب $myName بمنشورك!', 'timestamp': FieldValue.serverTimestamp(),
+                                      });
+                                    }
+                                  }
+                                },
+                                icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.redAccent : Colors.grey, size: 20),
+                                label: Text('${likes.length}', style: TextStyle(color: isLiked ? Colors.redAccent : Colors.grey)),
+                              ),
+                              TextButton.icon(
+                                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CommentsScreen(postId: postId))),
+                                icon: const Icon(Icons.comment_outlined, color: Colors.grey, size: 20),
+                                label: const Text('تعليق', style: TextStyle(color: Colors.grey)),
+                              ),
+                            ],
                           ),
-                          TextButton.icon(
+                          // زرار الحفظ (Bookmark) على الشمال
+                          IconButton(
+                            icon: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border, color: isSaved ? Colors.purpleAccent : Colors.grey),
                             onPressed: () async {
                               if (currentUser == null) return;
-                              if (isLiked) {
-                                // شيل اللايك
-                                await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayRemove([currentUser.uid])});
+                              if (isSaved) {
+                                await FirebaseFirestore.instance.collection('posts').doc(postId).update({'savedBy': FieldValue.arrayRemove([currentUser.uid])});
                               } else {
-                                // حط اللايك
-                                await FirebaseFirestore.instance.collection('posts').doc(postId).update({'likes': FieldValue.arrayUnion([currentUser.uid])});
-                                
-                                // إرسال إشعار اللايك لصاحب البوست (لو مش أنا اللي عامل لايك لنفسي)
-                                if (postOwnerId != currentUser.uid) {
-                                  DocumentSnapshot myDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
-                                  String myName = (myDoc.data() as Map<String, dynamic>)['name'] ?? 'مستخدم';
-                                  
-                                  await FirebaseFirestore.instance.collection('users').doc(postOwnerId).collection('notifications').add({
-                                    'title': 'إعجاب جديد ❤️',
-                                    'body': 'أعجب $myName بمنشورك!',
-                                    'timestamp': FieldValue.serverTimestamp(),
-                                  });
-                                }
+                                await FirebaseFirestore.instance.collection('posts').doc(postId).update({'savedBy': FieldValue.arrayUnion([currentUser.uid])});
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ المنشور 📌', textDirection: TextDirection.rtl), duration: Duration(seconds: 1)));
                               }
                             },
-                            icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: isLiked ? Colors.redAccent : Colors.grey),
-                            label: Text('${likes.length}', style: TextStyle(color: isLiked ? Colors.redAccent : Colors.grey)),
-                          ),
+                          )
                         ],
                       ),
                     ],

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dummy_screens.dart';
-import 'home_screen.dart'; // ده الـ Import الجديد
+import 'home_screen.dart'; 
+import 'search_screen.dart'; // سحبنا شاشة البحث
+import 'add_screen.dart';
+import 'notifications_screen.dart'; // سحبنا شاشة الإشعارات
+import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -12,12 +15,13 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
+  // كل الشاشات دلوقتي حقيقية 100% ومربوطة بالداتا بيز
   final List<Widget> _screens = const [
-    HomeScreen(),
-    SearchScreen(),
-    AddScreen(),
-    NotificationsScreen(),
-    ProfileScreen(),
+    HomeScreen(), 
+    SearchScreen(), 
+    AddScreen(), 
+    NotificationsScreen(), 
+    ProfileScreen(), 
   ];
 
   @override

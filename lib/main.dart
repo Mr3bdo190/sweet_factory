@@ -1,33 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
+import 'screens/login_screen.dart';
+import 'screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    // محاولة تشغيل الفايربيز
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     runApp(const WatenyApp());
   } catch (e) {
-    // لو ضرب إيرور، بدل ما يقفل هيعرضلك الشاشة دي
     runApp(MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        backgroundColor: Colors.red[900],
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Crash Info:\n$e',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              textDirection: TextDirection.ltr,
-            ),
-          ),
-        ),
-      ),
+      home: Scaffold(backgroundColor: Colors.red[900], body: Center(child: Text('Crash Info:\n$e', style: const TextStyle(color: Colors.white), textDirection: TextDirection.ltr))),
     ));
   }
 }
@@ -39,16 +28,28 @@ class WatenyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Wateny New Era',
-      theme: ThemeData.dark(),
-      home: const Scaffold(
-        body: Center(
-          child: Text(
-            'تم الربط بنجاح.. بداية عهد جديد!',
-            style: TextStyle(fontSize: 20, color: Colors.purpleAccent),
-            textDirection: TextDirection.rtl,
-          ),
-        ),
+      title: 'Wateny',
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF0F0F1A),
+      ),
+      // هنا الحارس الشخصي (Auth Stream)
+      home: StreamBuilder(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.active) {
+            if (snapshot.hasData) {
+              // لو مسجل دخول، ادخل على الرئيسية فوراً
+              return const MainScreen();
+            } else if (snapshot.hasError) {
+              return Center(child: Text('${snapshot.error}'));
+            }
+          }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
+          }
+          // لو مش مسجل دخول، روح لشاشة الدخول
+          return const LoginScreen();
+        },
       ),
     );
   }

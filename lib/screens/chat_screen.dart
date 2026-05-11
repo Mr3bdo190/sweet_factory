@@ -24,6 +24,7 @@ class _ChatScreenState extends State<ChatScreen> {
   
   bool _isSending = false;
   bool _isRecording = false;
+  File? _image;
 
   String getChatRoomId(String a, String b) => (a.compareTo(b) > 0) ? "${b}_$a" : "${a}_$b";
 
@@ -35,7 +36,14 @@ class _ChatScreenState extends State<ChatScreen> {
     }, SetOptions(merge: true));
   }
 
-  // دوال تسجيل الصوت
+  Future<void> pickImage() async {
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() => _image = File(pickedFile.path));
+      sendMessage(); 
+    }
+  }
+
   Future<void> startRecording() async {
     if (await _audioRecorder.hasPermission()) {
       setState(() => _isRecording = true);
@@ -64,17 +72,24 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void sendMessage() async {
-    if (_msgController.text.trim().isEmpty || currentUser == null) return;
+    if ((_msgController.text.trim().isEmpty && _image == null) || currentUser == null) return;
     setState(() => _isSending = true);
     String text = _msgController.text.trim();
     _msgController.clear(); 
     _updateTypingStatus(false);
+
+    String? imageUrl;
+    if (_image != null) {
+      imageUrl = await CloudinaryService().uploadImage(_image!);
+      setState(() => _image = null);
+    }
 
     String chatRoomId = getChatRoomId(currentUser!.uid, widget.receiverId);
     await FirebaseFirestore.instance.collection('chats').doc(chatRoomId).collection('messages').add({
       'senderId': currentUser!.uid,
       'receiverId': widget.receiverId,
       'text': text,
+      'imageUrl': imageUrl ?? '',
       'timestamp': FieldValue.serverTimestamp(),
       'isRead': false, 
     });
@@ -83,7 +98,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void markMessagesAsRead(List<QueryDocumentSnapshot> docs) {
     for (var doc in docs) {
-      var data = doc.data() as Map<String, dynamic>;
+      var data = doc.data() as Map<String, dynamic>? ?? {};
       if (data['receiverId'] == currentUser!.uid && data['isRead'] == false) {
         doc.reference.update({'isRead': true});
       }
@@ -101,11 +116,19 @@ class _ChatScreenState extends State<ChatScreen> {
         title: StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance.collection('users').doc(widget.receiverId).snapshots(),
           builder: (context, userSnapshot) {
-            bool isOnline = (userSnapshot.hasData && userSnapshot.data!.exists) ? (userSnapshot.data!.data() as Map<String, dynamic>)['isOnline'] ?? false : false;
+            bool isOnline = false;
+            if (userSnapshot.hasData && userSnapshot.data!.exists) {
+              var uData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+              isOnline = uData['isOnline'] == true;
+            }
             return StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance.collection('chats').doc(chatRoomId).snapshots(),
               builder: (context, chatSnapshot) {
-                bool isTyping = (chatSnapshot.hasData && chatSnapshot.data!.exists) ? (chatSnapshot.data!.data() as Map<String, dynamic>)['typing_${widget.receiverId}'] ?? false : false;
+                bool isTyping = false;
+                if (chatSnapshot.hasData && chatSnapshot.data!.exists) {
+                   var cData = chatSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+                   isTyping = cData['typing_${widget.receiverId}'] == true;
+                }
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -127,17 +150,22 @@ class _ChatScreenState extends State<ChatScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('chats').doc(chatRoomId).collection('messages').orderBy('timestamp', descending: true).snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
                 markMessagesAsRead(snapshot.data!.docs);
 
                 return ListView.builder(
                   reverse: true, 
                   itemCount: snapshot.data!.docs.length,
                   itemBuilder: (context, index) {
-                    var msg = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-                    bool isMe = msg['senderId'] == currentUser!.uid; 
-                    bool isRead = msg['isRead'] ?? false;
-                    bool hasAudio = msg['audioUrl'] != null;
+                    var msg = snapshot.data!.docs[index].data() as Map<String, dynamic>? ?? {};
+                    
+                    // حماية كاملة ضد الـ Nulls 🛡️
+                    String senderId = msg['senderId']?.toString() ?? '';
+                    bool isMe = senderId == currentUser!.uid; 
+                    bool isRead = msg['isRead'] == true;
+                    String audioUrl = msg['audioUrl']?.toString() ?? '';
+                    String imageUrl = msg['imageUrl']?.toString() ?? '';
+                    String text = msg['text']?.toString() ?? '';
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -148,19 +176,23 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: Column(
                           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                           children: [
-                            if (hasAudio)
+                            if (imageUrl.isNotEmpty)
+                              Padding(padding: const EdgeInsets.only(bottom: 8.0), child: ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(imageUrl, width: 200, fit: BoxFit.cover))),
+                            if (audioUrl.isNotEmpty)
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
                                     icon: const Icon(Icons.play_circle_fill, color: Colors.white, size: 30),
-                                    onPressed: () => _audioPlayer.play(UrlSource(msg['audioUrl'])),
+                                    onPressed: () => _audioPlayer.play(UrlSource(audioUrl)),
                                   ),
-                                  const Text('رسالة صوتية 🎵', style: TextStyle(color: Colors.white)),
+                                  const Text('صوتية 🎵', style: TextStyle(color: Colors.white)),
                                 ],
                               ),
-                            if (msg['text'] != null) Text(msg['text'], style: const TextStyle(color: Colors.white, fontSize: 16), textDirection: TextDirection.rtl),
-                            if (isMe) Padding(padding: const EdgeInsets.only(top: 4.0), child: Icon(Icons.done_all, size: 16, color: isRead ? Colors.blueAccent : Colors.white70))
+                            if (text.isNotEmpty) 
+                              Text(text, style: const TextStyle(color: Colors.white, fontSize: 16), textDirection: TextDirection.rtl),
+                            if (isMe) 
+                              Padding(padding: const EdgeInsets.only(top: 4.0), child: Icon(Icons.done_all, size: 16, color: isRead ? Colors.blueAccent : Colors.white70))
                           ],
                         ),
                       ),
@@ -174,6 +206,7 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.all(8.0), color: const Color(0xFF1A1A2E),
             child: Row(
               children: [
+                IconButton(icon: const Icon(Icons.image, color: Colors.purpleAccent, size: 28), onPressed: pickImage),
                 GestureDetector(
                   onLongPress: startRecording,
                   onLongPressUp: stopRecordingAndSend,
@@ -192,7 +225,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 _isSending 
-                  ? const Padding(padding: EdgeInsets.all(12.0), child: CircularProgressIndicator(color: Colors.purpleAccent)) 
+                  ? const Padding(padding: EdgeInsets.all(12.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.purpleAccent, strokeWidth: 2))) 
                   : IconButton(icon: const Icon(Icons.send, color: Colors.purpleAccent, size: 28), onPressed: sendMessage),
               ],
             ),

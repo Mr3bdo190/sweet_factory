@@ -18,36 +18,43 @@ class ChatListScreen extends StatelessWidget {
               stream: FirebaseFirestore.instance.collection('users').snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('مفيش مستخدمين في التطبيق لسه.', style: TextStyle(color: Colors.grey)));
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('مفيش مستخدمين لسه.', style: TextStyle(color: Colors.grey)));
                 
                 return ListView.builder(
                   itemCount: snapshot.data!.docs.length,
                   itemBuilder: (context, index) {
-                    var user = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-                    if (user['uid'] == currentUser.uid) return const SizedBox.shrink(); 
+                    var userDoc = snapshot.data!.docs[index];
+                    var user = userDoc.data() as Map<String, dynamic>? ?? {};
                     
-                    bool isOnline = user['isOnline'] ?? false;
+                    // الحماية السحرية: هنجيب الـ ID من اسم المستند نفسه (مستحيل يكون Null)
+                    String uid = userDoc.id; 
+                    if (uid == currentUser.uid) return const SizedBox.shrink(); 
+                    
+                    bool isOnline = user['isOnline'] == true;
+                    String name = user['name']?.toString() ?? 'مستخدم';
+                    String email = user['email']?.toString() ?? '';
+                    String profilePic = user['profilePic']?.toString() ?? '';
 
                     return ListTile(
                       leading: Stack(
                         children: [
-                          const CircleAvatar(backgroundColor: Colors.purpleAccent, child: Icon(Icons.person, color: Colors.white)),
-                          if (isOnline) // النقطة الخضراء
+                          CircleAvatar(
+                            backgroundColor: Colors.purpleAccent, 
+                            backgroundImage: profilePic.isNotEmpty ? NetworkImage(profilePic) : null,
+                            child: profilePic.isEmpty ? const Icon(Icons.person, color: Colors.white) : null
+                          ),
+                          if (isOnline) 
                             Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                width: 12, height: 12,
-                                decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1A2E), width: 2)),
-                              ),
+                              bottom: 0, right: 0,
+                              child: Container(width: 12, height: 12, decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1A2E), width: 2))),
                             )
                         ],
                       ),
-                      title: Text(user['name'] ?? 'مستخدم', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                      subtitle: Text(user['email'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      subtitle: Text(email, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                       trailing: const Icon(Icons.chat_bubble_outline, color: Colors.purpleAccent, size: 20),
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiverId: user['uid'], receiverName: user['name'] ?? 'مستخدم')));
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiverId: uid, receiverName: name)));
                       },
                     );
                   },

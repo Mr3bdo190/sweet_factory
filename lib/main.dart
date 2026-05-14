@@ -3,11 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/auth_toggle.dart';
 import 'screens/main_screen.dart';
+import 'firebase_options.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // صائدة الأخطاء العظيمة بتاعتنا
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return MaterialApp(
       home: Scaffold(
@@ -41,11 +41,10 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0F0F1A),
         appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF1A1A2E), elevation: 0),
       ),
-      // هنا السحر: مش هنفتح التطبيق غير لما الفايربيز يحمل الأول
+      // هنا السحر: استخدمنا المفاتيح المزروعة
       home: FutureBuilder(
-        future: Firebase.initializeApp(),
+        future: Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
         builder: (context, snapshot) {
-          // لو الفايربيز فيه مشكلة حقيقية، هيعرضها هنا بوضوح
           if (snapshot.hasError) {
             return Scaffold(
               backgroundColor: const Color(0xFF0F0F1A),
@@ -58,7 +57,6 @@ class MyApp extends StatelessWidget {
             );
           }
 
-          // لو الفايربيز حمل بنجاح، نبدأ نشوف تسجيل الدخول
           if (snapshot.connectionState == ConnectionState.done) {
             return StreamBuilder<User?>(
               stream: FirebaseAuth.instance.authStateChanges(),
@@ -75,7 +73,6 @@ class MyApp extends StatelessWidget {
             );
           }
 
-          // شاشة تحميل شيك لحد ما الفايربيز يخلص
           return const Scaffold(
             backgroundColor: Color(0xFF0F0F1A),
             body: Center(child: CircularProgressIndicator(color: Colors.purpleAccent)),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/auth_service.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -74,7 +73,7 @@ class ProfileScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 onPressed: () async {
-                  await AuthService().logOut();
+                  await FirebaseAuth.instance.signOut();
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 icon: const Icon(Icons.logout),

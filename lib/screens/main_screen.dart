@@ -28,7 +28,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         backgroundColor: const Color(0xFF1A1A2E),
         elevation: 1,
         actions: [
-          IconButton(icon: const Icon(Icons.search, color: Colors.grey), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.search, color: Colors.grey), onPressed: () => _showSearchDialog(context)),
           IconButton(icon: const Icon(Icons.more_vert, color: Colors.grey), onPressed: () {
              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
           }),
@@ -63,3 +63,31 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     );
   }
 }
+
+  void _showSearchDialog(BuildContext context) {
+    TextEditingController _searchController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: const Text('بحث برقم الهاتف', style: TextStyle(color: Colors.white)),
+        content: TextField(controller: _searchController, keyboardType: TextInputType.phone, decoration: const InputDecoration(hintText: '010...', hintStyle: TextStyle(color: Colors.grey))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () async {
+              var res = await FirebaseFirestore.instance.collection('users').where('phone', isEqualTo: _searchController.text.trim()).get();
+              if (res.docs.isNotEmpty) {
+                var userData = res.docs.first.data();
+                Navigator.pop(context);
+                // افتح الشات معاه فوراً
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('المستخدم غير موجود')));
+              }
+            },
+            child: const Text('بحث'),
+          )
+        ],
+      ),
+    );
+  }

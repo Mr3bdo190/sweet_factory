@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/auth_toggle.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
@@ -48,7 +49,7 @@ class WatenyApp extends StatelessWidget {
             return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
           }
           // لو مش مسجل دخول، روح لشاشة الدخول
-          return const LoginScreen();
+          return const AuthToggle();
         },
       ),
     );

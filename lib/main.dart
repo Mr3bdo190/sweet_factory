@@ -5,13 +5,33 @@ import 'screens/auth_toggle.dart';
 import 'screens/main_screen.dart';
 
 void main() async {
-  // تأمين تشغيل الأدوات قبل أي حاجة
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // صائدة الأخطاء السحرية: لو التطبيق كرش هيكتبلك السبب بدل الشاشة البيضا
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              details.exceptionAsString(),
+              style: const TextStyle(color: Colors.redAccent, fontSize: 16),
+              textDirection: TextDirection.ltr,
+            ),
+          ),
+        ),
+      ),
+    );
+  };
+
   try {
     await Firebase.initializeApp();
   } catch (e) {
     print("Firebase Init Error: $e");
   }
+  
   runApp(const MyApp());
 }
 
@@ -30,18 +50,22 @@ class MyApp extends StatelessWidget {
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          // 1. حالة التحميل (عشان نمنع الشاشة السودا)
+          // تأمين شاشة التحميل بلون التطبيق مش أبيض
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
+              backgroundColor: Color(0xFF0F0F1A),
               body: Center(child: CircularProgressIndicator(color: Colors.purpleAccent)),
             );
           }
-          // 2. لو مسجل دخول
+          if (snapshot.hasError) {
+            return Scaffold(
+              backgroundColor: const Color(0xFF0F0F1A),
+              body: Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent))),
+            );
+          }
           if (snapshot.hasData) {
             return const MainScreen();
-          } 
-          // 3. لو مش مسجل
-          else {
+          } else {
             return const AuthToggle();
           }
         },

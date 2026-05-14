@@ -19,12 +19,21 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final User? currentUser = FirebaseAuth.instance.currentUser;
-  final _audioRecorder = Record();
+  
+  // التحديث الجديد للمكتبة هنا! (AudioRecorder بدل Record)
+  final AudioRecorder _audioRecorder = AudioRecorder(); 
   final AudioPlayer _audioPlayer = AudioPlayer();
   
   bool _isSending = false;
   bool _isRecording = false;
   File? _image;
+
+  @override
+  void dispose() {
+    _audioRecorder.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
 
   String getChatRoomId(String a, String b) => (a.compareTo(b) > 0) ? "${b}_$a" : "${a}_$b";
 
@@ -44,10 +53,13 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // تحديث دالة التسجيل للطريقة الجديدة
   Future<void> startRecording() async {
     if (await _audioRecorder.hasPermission()) {
       setState(() => _isRecording = true);
-      await _audioRecorder.start();
+      // بنحفظ الملف في مسار مؤقت عشان المكتبة الجديدة بتطلب مسار
+      String tempPath = '${Directory.systemTemp.path}/rec_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _audioRecorder.start(const RecordConfig(), path: tempPath);
     }
   }
 
@@ -159,7 +171,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     var msg = snapshot.data!.docs[index].data() as Map<String, dynamic>? ?? {};
                     
-                    // حماية كاملة ضد الـ Nulls 🛡️
                     String senderId = msg['senderId']?.toString() ?? '';
                     bool isMe = senderId == currentUser!.uid; 
                     bool isRead = msg['isRead'] == true;

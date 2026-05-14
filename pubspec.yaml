@@ -17,7 +17,7 @@ dependencies:
   firebase_auth: ^6.4.0
   cloud_firestore: ^6.3.0
   image_picker:
-  record: ^4.2.8
+  record: ^6.2.0
   flutter_contacts: ^1.1.9
   permission_handler: ^11.3.1
   audioplayers:

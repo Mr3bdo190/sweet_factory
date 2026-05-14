@@ -1,66 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/contact_service.dart';
 import 'chat_screen.dart';
 
-class ChatListScreen extends StatelessWidget {
+class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
+  @override
+  State<ChatListScreen> createState() => _ChatListScreenState();
+}
+
+class _ChatListScreenState extends State<ChatListScreen> {
+  final User? currentUser = FirebaseAuth.instance.currentUser;
+  List<Map<String, dynamic>> _contacts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts();
+  }
+
+  void _loadContacts() async {
+    var synced = await ContactService.syncContacts();
+    setState(() {
+      _contacts = synced;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (_isLoading) return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('الرسائل', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold)), backgroundColor: const Color(0xFF1A1A2E), elevation: 0, centerTitle: true),
-      body: currentUser == null
-          ? const Center(child: Text('الرجاء تسجيل الدخول'))
-          : StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.purpleAccent));
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('مفيش مستخدمين لسه.', style: TextStyle(color: Colors.grey)));
-                
-                return ListView.builder(
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    var userDoc = snapshot.data!.docs[index];
-                    var user = userDoc.data() as Map<String, dynamic>? ?? {};
-                    
-                    // الحماية السحرية: هنجيب الـ ID من اسم المستند نفسه (مستحيل يكون Null)
-                    String uid = userDoc.id; 
-                    if (uid == currentUser.uid) return const SizedBox.shrink(); 
-                    
-                    bool isOnline = user['isOnline'] == true;
-                    String name = user['name']?.toString() ?? 'مستخدم';
-                    String email = user['email']?.toString() ?? '';
-                    String profilePic = user['profilePic']?.toString() ?? '';
+      body: _contacts.isEmpty 
+        ? const Center(child: Text('لا يوجد جهات اتصال مسجلة في التطبيق', style: TextStyle(color: Colors.grey)))
+        : ListView.builder(
+            itemCount: _contacts.length,
+            itemBuilder: (context, index) {
+              var user = _contacts[index];
+              if (user['uid'] == currentUser?.uid) return const SizedBox.shrink();
 
-                    return ListTile(
-                      leading: Stack(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: Colors.purpleAccent, 
-                            backgroundImage: profilePic.isNotEmpty ? NetworkImage(profilePic) : null,
-                            child: profilePic.isEmpty ? const Icon(Icons.person, color: Colors.white) : null
-                          ),
-                          if (isOnline) 
-                            Positioned(
-                              bottom: 0, right: 0,
-                              child: Container(width: 12, height: 12, decoration: BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1A2E), width: 2))),
-                            )
-                        ],
-                      ),
-                      title: Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                      subtitle: Text(email, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                      trailing: const Icon(Icons.chat_bubble_outline, color: Colors.purpleAccent, size: 20),
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiverId: uid, receiverName: name)));
-                      },
-                    );
-                  },
-                );
-              },
-            ),
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.purpleAccent,
+                  backgroundImage: (user['profilePic'] != null && user['profilePic'] != '') ? NetworkImage(user['profilePic']) : null,
+                  child: (user['profilePic'] == null || user['profilePic'] == '') ? const Icon(Icons.person, color: Colors.white) : null,
+                ),
+                title: Text(user['name'] ?? 'مستخدم', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: Text(user['phone'] ?? '', style: const TextStyle(color: Colors.grey)),
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiverId: user['uid'], receiverName: user['name'])));
+                },
+              );
+            },
+          ),
     );
   }
 }

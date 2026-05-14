@@ -1,63 +1,64 @@
 import 'package:flutter/material.dart';
-import '../services/presence_service.dart';
-import 'home_screen.dart'; 
-import 'search_screen.dart'; 
-import 'add_screen.dart';
-import 'notifications_screen.dart'; 
+import 'chat_list_screen.dart';
+import 'home_screen.dart'; // هنخليها للـ Stories (الحالات)
 import 'profile_screen.dart';
+import '../services/presence_service.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
-
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
-
-  final List<Widget> _screens = const [
-    HomeScreen(), 
-    SearchScreen(), 
-    AddScreen(), 
-    NotificationsScreen(), 
-    ProfileScreen(), 
-  ];
+class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    // تشغيل مراقب الأونلاين
+    _tabController = TabController(length: 3, vsync: this, initialIndex: 0);
     PresenceService().init();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A2E),
-          border: Border(top: BorderSide(color: Colors.purpleAccent.withOpacity(0.3), width: 1)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          backgroundColor: Colors.transparent,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: Colors.purpleAccent,
-          unselectedItemColor: Colors.grey,
-          elevation: 0,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
-            BottomNavigationBarItem(icon: Icon(Icons.search), activeIcon: Icon(Icons.saved_search), label: 'بحث'),
-            BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline, size: 35), activeIcon: Icon(Icons.add_circle, size: 35), label: 'إضافة'),
-            BottomNavigationBarItem(icon: Icon(Icons.notifications_none), activeIcon: Icon(Icons.notifications), label: 'إشعارات'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'حسابي'),
+      appBar: AppBar(
+        title: const Text('Wateny', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold, fontSize: 22)),
+        backgroundColor: const Color(0xFF1A1A2E),
+        elevation: 1,
+        actions: [
+          IconButton(icon: const Icon(Icons.search, color: Colors.grey), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.more_vert, color: Colors.grey), onPressed: () {
+             Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+          }),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.purpleAccent,
+          labelColor: Colors.purpleAccent,
+          unselectedLabelColor: Colors.grey,
+          tabs: const [
+            Tab(text: 'الدردشات'),
+            Tab(text: 'الحالات'),
+            Tab(text: 'المكالمات'),
           ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: const [
+          ChatListScreen(), // شاشة الشاتات
+          HomeScreen(),     // شاشة الحالات
+          Center(child: Text('سجل المكالمات فارغ', style: TextStyle(color: Colors.grey))), 
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.purpleAccent,
+        onPressed: () {
+          // زرار بدء شات جديد مع جهات الاتصال
+        },
+        child: const Icon(Icons.message, color: Colors.white),
       ),
     );
   }

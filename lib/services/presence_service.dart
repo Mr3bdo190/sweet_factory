@@ -15,9 +15,9 @@ class PresenceService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _updatePresence(true); // رجع للتطبيق
-    } else {
-      _updatePresence(false); // قفل أو نزل التطبيق
+      _updatePresence(true); // التطبيق مفتوح في الشاشة
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.detached) {
+      _updatePresence(false); // نزل في الخلفية أو اتقفل
     }
   }
 

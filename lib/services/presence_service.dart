@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widgets.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PresenceService with WidgetsBindingObserver {
   static final PresenceService _instance = PresenceService._internal();
@@ -9,25 +9,25 @@ class PresenceService with WidgetsBindingObserver {
 
   void init() {
     WidgetsBinding.instance.addObserver(this);
-    updateStatus(true);
+    _updatePresence(true);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      updateStatus(true); // التطبيق مفتوح
+      _updatePresence(true); // رجع للتطبيق
     } else {
-      updateStatus(false); // التطبيق مقفول أو في الخلفية
+      _updatePresence(false); // قفل أو نزل التطبيق
     }
   }
 
-  Future<void> updateStatus(bool isOnline) async {
+  void _updatePresence(bool isOnline) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
         'isOnline': isOnline,
         'lastSeen': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      });
     }
   }
 }

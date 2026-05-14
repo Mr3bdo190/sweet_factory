@@ -1,78 +1,75 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import 'main_screen.dart';
-import 'register_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final VoidCallback showRegisterScreen;
+  const LoginScreen({super.key, required this.showRegisterScreen});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  void signIn() async {
+  Future signIn() async {
+    if (_phoneController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) return;
     setState(() => _isLoading = true);
-    String res = await AuthService().loginUser(
-      email: _emailController.text,
-      password: _passwordController.text,
-    );
-    setState(() => _isLoading = false);
 
-    if (res == 'success') {
-      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res, textDirection: TextDirection.rtl)));
-      }
+    try {
+      String fakeEmail = "${_phoneController.text.trim()}@wateny.com";
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: fakeEmail,
+        password: _passwordController.text.trim(),
+      );
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرقم أو كلمة السر غير صحيحة!', textDirection: TextDirection.rtl)));
     }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0F0F1A),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.favorite, size: 80, color: Colors.purpleAccent),
-              const SizedBox(height: 16),
-              const Text('Wateny', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 48),
+              const Icon(Icons.chat_rounded, size: 100, color: Colors.purpleAccent),
+              const SizedBox(height: 20),
+              const Text('تسجيل الدخول', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 30),
               TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(hintText: 'البريد الإلكتروني', filled: true, fillColor: const Color(0xFF2A2A3E), border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.email, color: Colors.grey)),
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                textDirection: TextDirection.ltr,
+                decoration: InputDecoration(hintText: 'رقم الموبايل', filled: true, fillColor: const Color(0xFF1A1A2E), border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: InputDecoration(hintText: 'كلمة المرور', filled: true, fillColor: const Color(0xFF2A2A3E), border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.lock, color: Colors.grey)),
+                textDirection: TextDirection.ltr,
+                decoration: InputDecoration(hintText: 'كلمة السر', filled: true, fillColor: const Color(0xFF1A1A2E), border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               SizedBox(
-                width: double.infinity,
-                height: 55,
+                width: double.infinity, height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
                   onPressed: _isLoading ? null : signIn,
-                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('تسجيل الدخول', style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('دخول', style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
+              const SizedBox(height: 20),
               TextButton(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
-                },
-                child: const Text('معندكش حساب؟ اعمل واحد جديد', style: TextStyle(color: Colors.grey)),
+                onPressed: widget.showRegisterScreen,
+                child: const Text('معندكش حساب؟ سجل دلوقتي', style: TextStyle(color: Colors.purpleAccent)),
               )
             ],
           ),

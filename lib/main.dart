@@ -5,8 +5,13 @@ import 'screens/auth_toggle.dart';
 import 'screens/main_screen.dart';
 
 void main() async {
+  // تأمين تشغيل الأدوات قبل أي حاجة
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    print("Firebase Init Error: $e");
+  }
   runApp(const MyApp());
 }
 
@@ -25,11 +30,17 @@ class MyApp extends StatelessWidget {
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          // لو مسجل دخول، افتح شاشة الواتساب الرئيسية (التابات)
+          // 1. حالة التحميل (عشان نمنع الشاشة السودا)
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator(color: Colors.purpleAccent)),
+            );
+          }
+          // 2. لو مسجل دخول
           if (snapshot.hasData) {
             return const MainScreen();
           } 
-          // لو مش مسجل، افتح نظام الدخول الجديد (AuthToggle)
+          // 3. لو مش مسجل
           else {
             return const AuthToggle();
           }

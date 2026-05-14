@@ -4,6 +4,10 @@ version: 2.0.0+2
 environment:
   sdk: ">=3.0.0 <4.0.0"
 dependencies:
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  swipe_to: ^1.0.2
+  shared_preferences: ^2.2.3
   flutter:
     sdk: flutter
   google_fonts: ^6.1.0

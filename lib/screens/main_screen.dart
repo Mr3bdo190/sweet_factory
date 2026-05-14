@@ -23,14 +23,14 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   }
 
   void _showSearchDialog(BuildContext context) {
-    TextEditingController _searchController = TextEditingController();
+    TextEditingController searchController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A2E),
         title: const Text('بحث برقم الهاتف', style: TextStyle(color: Colors.white)),
         content: TextField(
-          controller: _searchController,
+          controller: searchController,
           keyboardType: TextInputType.phone,
           style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(hintText: '010...', hintStyle: TextStyle(color: Colors.grey)),
@@ -40,11 +40,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent),
             onPressed: () async {
-              String phone = _searchController.text.trim();
+              String phone = searchController.text.trim();
               var res = await FirebaseFirestore.instance.collection('users').where('phone', isEqualTo: phone).get();
               if (res.docs.isNotEmpty) {
                 var userData = res.docs.first.data();
-                Navigator.pop(context);
+                Navigator.pop(context); // قفل نافذة البحث
                 Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiverId: userData['uid'], receiverName: userData['name'])));
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('عفواً، الرقم غير مسجل في وطني')));

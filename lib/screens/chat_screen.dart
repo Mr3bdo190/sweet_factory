@@ -219,7 +219,8 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 IconButton(icon: const Icon(Icons.image, color: Colors.purpleAccent, size: 28), onPressed: pickImage),
                 GestureDetector(
-                  onLongPress: startRecording,
+                  onLongPress: startRecording, 
+ // Added delete logic below
                   onLongPressUp: stopRecordingAndSend,
                   child: CircleAvatar(
                     backgroundColor: _isRecording ? Colors.redAccent : Colors.purpleAccent,

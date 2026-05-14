@@ -17,20 +17,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> uploadStatus() async {
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile == null) return;
-
     setState(() => _isUploading = true);
-    File imageFile = File(pickedFile.path);
-    String? imageUrl = await CloudinaryService().uploadImage(imageFile);
-
+    String? imageUrl = await CloudinaryService().uploadImage(File(pickedFile.path));
     if (imageUrl != null) {
       User? user = FirebaseAuth.instance.currentUser;
       await FirebaseFirestore.instance.collection('stories').add({
         'uid': user!.uid,
         'imageUrl': imageUrl,
         'timestamp': FieldValue.serverTimestamp(),
-        'expiresAt': DateTime.now().add(const Duration(hours: 24)).millisecondsSinceEpoch,
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفع الحالة بنجاح! ✨')));
     }
     setState(() => _isUploading = false);
   }
@@ -46,29 +41,27 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               ListTile(
-                leading: Stack(
-                  children: [
-                    const CircleAvatar(radius: 25, backgroundColor: Colors.purpleAccent, child: Icon(Icons.person, color: Colors.white)),
-                    Positioned(bottom: 0, right: 0, child: Container(decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle), child: const Icon(Icons.add, color: Colors.white, size: 20))),
-                  ],
-                ),
+                leading: Stack(children: [const CircleAvatar(radius: 25, backgroundColor: Colors.purpleAccent, child: Icon(Icons.person, color: Colors.white)), Positioned(bottom: 0, right: 0, child: Container(decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle), child: const Icon(Icons.add, color: Colors.white, size: 20)))]),
                 title: const Text('حالتي', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: Text(_isUploading ? 'جاري الرفع...' : 'انقر لإضافة حالة', style: const TextStyle(color: Colors.grey)),
-                onTap: _isUploading ? null : uploadStatus,
+                subtitle: Text(_isUploading ? 'جاري الرفع...' : 'إضافة تحديث لحالتي', style: const TextStyle(color: Colors.grey)),
+                onTap: uploadStatus,
               ),
               const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('التحديثات الأخيرة', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
-                const Center(child: Text('لا توجد حالات حالياً', style: TextStyle(color: Colors.grey)))
+                const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('لا توجد حالات حالياً', style: TextStyle(color: Colors.grey))))
               else
                 ...snapshot.data!.docs.map((doc) {
                   var data = doc.data() as Map<String, dynamic>;
-                  return ListTile(
-                    leading: Container(padding: const EdgeInsets.all(2), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.purpleAccent, width: 2)), child: CircleAvatar(backgroundImage: NetworkImage(data['imageUrl']))),
-                    title: const Text('صديق', style: TextStyle(color: Colors.white)),
-                    subtitle: const Text('منذ قليل'),
-                    onTap: () {
-                      // عرض الحالة في شاشة كاملة
-                      showDialog(context: context, builder: (_) => Scaffold(backgroundColor: Colors.black, body: Center(child: Image.network(data['imageUrl']))));
+                  return FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance.collection('users').doc(data['uid']).get(),
+                    builder: (context, userSnap) {
+                      String name = userSnap.hasData ? (userSnap.data!.data() as Map<String, dynamic>)['name'] : 'تحميل...';
+                      return ListTile(
+                        leading: Container(padding: const EdgeInsets.all(2), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.purpleAccent, width: 2)), child: CircleAvatar(backgroundImage: NetworkImage(data['imageUrl']))),
+                        title: Text(name, style: const TextStyle(color: Colors.white)),
+                        subtitle: const Text('منذ قليل'),
+                        onTap: () => showDialog(context: context, builder: (_) => Scaffold(backgroundColor: Colors.black, body: Stack(children: [Center(child: Image.network(data['imageUrl'])), Positioned(top: 40, left: 20, child: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)))]))),
+                      );
                     },
                   );
                 }),

@@ -18,7 +18,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this, initialIndex: 0);
+    // خليناهم 2 تاب بس بدل 3
+    _tabController = TabController(length: 2, vsync: this, initialIndex: 0);
     PresenceService().init();
   }
 
@@ -44,10 +45,10 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               var res = await FirebaseFirestore.instance.collection('users').where('phone', isEqualTo: phone).get();
               if (res.docs.isNotEmpty) {
                 var userData = res.docs.first.data();
-                Navigator.pop(context); // قفل نافذة البحث
+                Navigator.pop(context); 
                 Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(receiverId: userData['uid'], receiverName: userData['name'])));
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('عفواً، الرقم غير مسجل في وطني')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الرقم غير مسجل في وطني')));
               }
             },
             child: const Text('بدء دردشة'),
@@ -70,15 +71,14 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.purpleAccent,
-          tabs: const [Tab(text: 'الدردشات'), Tab(text: 'الحالات'), Tab(text: 'المكالمات')],
+          tabs: const [Tab(text: 'الدردشات'), Tab(text: 'الحالات')],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          const ChatListScreen(),
-          const HomeScreen(),
-          const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.call_end, size: 50, color: Colors.grey), SizedBox(height: 10), Text('لا توجد مكالمات بعد', style: TextStyle(color: Colors.grey))])),
+        children: const [
+          ChatListScreen(),
+          HomeScreen(),
         ],
       ),
       floatingActionButton: FloatingActionButton(

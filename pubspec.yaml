@@ -18,6 +18,10 @@ dependencies:
   cloud_firestore: ^6.3.0
   image_picker:
   record: ^6.2.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  swipe_to: ^1.0.2
+  shared_preferences: ^2.2.3
   flutter_contacts: ^1.1.9
   permission_handler: ^11.3.1
   audioplayers:

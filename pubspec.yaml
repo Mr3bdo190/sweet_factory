@@ -9,7 +9,6 @@ dependencies:
   google_fonts: ^6.1.0
   font_awesome_flutter: ^10.7.0
   timeago: ^3.7.0
-  shared_preferences: ^2.3.2
   provider: ^6.1.2
   lottie: ^3.1.2
   flutter_animate: ^4.5.0
@@ -18,10 +17,6 @@ dependencies:
   cloud_firestore: ^6.3.0
   image_picker:
   record: ^6.2.0
-  hive: ^2.2.3
-  hive_flutter: ^1.1.0
-  swipe_to: ^1.0.2
-  shared_preferences: ^2.2.3
   flutter_contacts: ^1.1.9
   permission_handler: ^11.3.1
   audioplayers:
